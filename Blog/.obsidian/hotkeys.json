@@ -1,0 +1,22 @@
+{
+  "Enhanced-editing:del-space2": [
+    {
+      "modifiers": [
+        "Alt",
+        "Mod"
+      ],
+      "key": " "
+    }
+  ],
+  "Enhanced-editing:add-space1": [
+    {
+      "modifiers": [
+        "Mod",
+        "Shift"
+      ],
+      "key": " "
+    }
+  ],
+  "editor:open-link-in-new-leaf": [],
+  "Enhanced-editing:add-Line0": []
+}

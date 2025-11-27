@@ -1,0 +1,257 @@
+{
+  "main": {
+    "id": "5d870109db013738",
+    "type": "split",
+    "children": [
+      {
+        "id": "0c1c4e0b3e188223",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "990e6f1032124805",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "基础/git.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "git"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "c0e84a6540c954c1",
+    "type": "split",
+    "children": [
+      {
+        "id": "3293619a1ca07ed7",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "c2f7a8b83f58bd4d",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "文件列表"
+            }
+          },
+          {
+            "id": "daf0034ccb7da9aa",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "757128b588ea2a12",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "right": {
+    "id": "fcea3789067d1396",
+    "type": "split",
+    "children": [
+      {
+        "id": "51bc0017b3f8deb1",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "a073bcba97122f92",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "反向链接"
+            }
+          },
+          {
+            "id": "b2d300ad0b1c4bb0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "出链"
+            }
+          },
+          {
+            "id": "d84f19f2b4a0aa39",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "2575b9f408b9c79c",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "ee7fa7181478c402",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "基础/git.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "git 的大纲"
+            }
+          },
+          {
+            "id": "693cdfc3c0066043",
+            "type": "leaf",
+            "state": {
+              "type": "SC-custom-variables-view",
+              "state": {},
+              "icon": "code-glyph",
+              "title": "Shell commands: Custom variables"
+            }
+          },
+          {
+            "id": "2ada56c593bb6249",
+            "type": "leaf",
+            "state": {
+              "type": "file-properties",
+              "state": {
+                "file": "ceph/ceph.md"
+              },
+              "icon": "lucide-info",
+              "title": "ceph的笔记属性"
+            }
+          }
+        ],
+        "currentTab": 4
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:打开快速切换": false,
+      "graph:查看关系图谱": false,
+      "canvas:新建白板": false,
+      "daily-notes:打开/创建今天的日记": false,
+      "command-palette:打开命令面板": false,
+      "bases:创建新数据库": false,
+      "templater-obsidian:Templater": false,
+      "obsidian-shellcommands:Shell commands: Custom variables": false,
+      "obsidian42-brat:BRAT": false
+    }
+  },
+  "active": "990e6f1032124805",
+  "lastOpenFiles": [
+    "Script/ConvertObsidianToHugo.sh",
+    "Script",
+    "ConvertObsidianToHugo.sh",
+    "基础/云计算.md",
+    "基础/git.md",
+    "Linux/Linux.md",
+    "Linux/修改密码.md",
+    "其它/安装操作系统.md",
+    "Linux/UFW.md",
+    "Linux/SELinux.md",
+    "存储/_index.md",
+    "存储/ceph.md",
+    "存储/assets/ceph/统一存储-20251124172851483.png",
+    "存储/assets/ceph",
+    "存储/assets",
+    "存储",
+    "题目/_index.md",
+    "设备/_index.md",
+    "其它/_index.md",
+    "题目/题目.md",
+    "中间件/_index.md",
+    "基础/_index.md",
+    "网络/_index.md",
+    "Linux/_index.md",
+    "linshi/测试.md",
+    "linshi/_index.md",
+    "Template/filename.md",
+    "其它/hugo/Hugo_Relearn.md",
+    "linshi",
+    "其它/hugo/Hugo_Lotusdocs.md",
+    "中间件/Smokeping.md",
+    "网络/远程登录.md",
+    "其它/assets/安装操作系统/network.png",
+    "其它/assets/安装操作系统",
+    "其它/assets",
+    "设备/基础设备.md",
+    "其它/hugo/assets/Hugo_Relearn/行末添加空格-20251122140923857.png",
+    "其它/hugo/assets/Hugo_Relearn",
+    "其它/hugo/assets",
+    "Linux/assets/修改密码/使用debug shell-20251023094830572.png",
+    "Linux/assets/修改密码/使用bash作为init-20251022174003651.png",
+    "中间件/assets/Zabbix/图表不能显示中文-20251025151539309.png",
+    "中间件/assets/Zabbix/图表不能显示中文-20251025145841767.png",
+    "中间件/assets/Zabbix/安装-20251025144935832.png",
+    "中间件/assets/Smokeping/添加Basic认证-20251025114603710.png",
+    "中间件/assets/Smokeping/image.png"
+  ]
+}

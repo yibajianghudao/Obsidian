@@ -1,0 +1,13 @@
+{
+  "newFileLocation": "root",
+  "attachmentFolderPath": "/",
+  "newLinkFormat": "relative",
+  "useMarkdownLinks": true,
+  "promptDelete": false,
+  "propertiesInDocument": "source",
+  "strictLineBreaks": true,
+  "spellcheck": false,
+  "livePreview": false,
+  "readableLineLength": false,
+  "foldIndent": false
+}
