@@ -4,24 +4,39 @@
     "type": "split",
     "children": [
       {
-        "id": "0c1c4e0b3e188223",
+        "id": "374897d0dc8a77f6",
         "type": "tabs",
         "children": [
           {
-            "id": "990e6f1032124805",
+            "id": "624940efa9c42f1c",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "基础/git.md",
+                "file": "Linux/Linux.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "git"
+              "title": "Linux"
+            }
+          },
+          {
+            "id": "4a9e8dd0722d503b",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "存储/磁盘/磁盘空间清理.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "磁盘空间清理"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -154,13 +169,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "基础/git.md",
-                "followCursor": false,
+                "file": "存储/磁盘/磁盘空间清理.md",
+                "followCursor": true,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "git 的大纲"
+              "title": "磁盘空间清理 的大纲"
             }
           },
           {
@@ -179,10 +194,10 @@
             "state": {
               "type": "file-properties",
               "state": {
-                "file": "ceph/ceph.md"
+                "file": "Linux/Linux.md"
               },
               "icon": "lucide-info",
-              "title": "ceph的笔记属性"
+              "title": "Linux的笔记属性"
             }
           }
         ],
@@ -205,53 +220,52 @@
       "obsidian42-brat:BRAT": false
     }
   },
-  "active": "990e6f1032124805",
+  "active": "4a9e8dd0722d503b",
   "lastOpenFiles": [
+    "Linux/Linux.md",
+    "存储/磁盘/磁盘空间清理.md",
+    "虚拟机/KVM.md",
+    "虚拟机/assets/KVM/-20251208101657740.png",
+    "虚拟机/assets/KVM",
+    "虚拟机/安装操作系统.md",
+    "虚拟机/assets/安装操作系统",
+    "虚拟机/assets",
+    "虚拟机/_index.md",
+    "存储/_index.md",
+    "基础/_index.md",
+    "其它/_index.md",
+    "Linux/_index.md",
+    "中间件/_index.md",
+    "网络/_index.md",
+    "题目/_index.md",
+    "题目/题目.md",
+    "虚拟机",
+    "Linux/SELinux.md",
+    "Linux/UFW.md",
+    "Linux/修改密码.md",
+    "基础/云计算.md",
+    "基础/设备/基础设备.md",
+    "基础/设备/硬件.md",
+    "存储/ceph.md",
+    "存储/assets/ceph/ceph.svg",
+    "存储/assets/ceph/三层架构-20251206151931213.png",
+    "Linux/assets/Linux/zombies-turnoff-800x467.webp",
+    "Linux/assets/Linux/top.png",
+    "Linux/assets/Linux",
+    "其它/hugo/Hugo_Relearn.md",
+    "基础/git.md",
     "Script/ConvertObsidianToHugo.sh",
     "Script",
     "ConvertObsidianToHugo.sh",
-    "基础/云计算.md",
-    "基础/git.md",
-    "Linux/Linux.md",
-    "Linux/修改密码.md",
-    "其它/安装操作系统.md",
-    "Linux/UFW.md",
-    "Linux/SELinux.md",
-    "存储/_index.md",
-    "存储/ceph.md",
     "存储/assets/ceph/统一存储-20251124172851483.png",
     "存储/assets/ceph",
     "存储/assets",
-    "存储",
-    "题目/_index.md",
-    "设备/_index.md",
-    "其它/_index.md",
-    "题目/题目.md",
-    "中间件/_index.md",
-    "基础/_index.md",
-    "网络/_index.md",
-    "Linux/_index.md",
+    "基础/设备/_index.md",
     "linshi/测试.md",
     "linshi/_index.md",
-    "Template/filename.md",
-    "其它/hugo/Hugo_Relearn.md",
-    "linshi",
-    "其它/hugo/Hugo_Lotusdocs.md",
-    "中间件/Smokeping.md",
-    "网络/远程登录.md",
-    "其它/assets/安装操作系统/network.png",
-    "其它/assets/安装操作系统",
-    "其它/assets",
-    "设备/基础设备.md",
+    "虚拟机/assets/安装操作系统/network.png",
     "其它/hugo/assets/Hugo_Relearn/行末添加空格-20251122140923857.png",
-    "其它/hugo/assets/Hugo_Relearn",
-    "其它/hugo/assets",
     "Linux/assets/修改密码/使用debug shell-20251023094830572.png",
-    "Linux/assets/修改密码/使用bash作为init-20251022174003651.png",
-    "中间件/assets/Zabbix/图表不能显示中文-20251025151539309.png",
-    "中间件/assets/Zabbix/图表不能显示中文-20251025145841767.png",
-    "中间件/assets/Zabbix/安装-20251025144935832.png",
-    "中间件/assets/Smokeping/添加Basic认证-20251025114603710.png",
-    "中间件/assets/Smokeping/image.png"
+    "Linux/assets/修改密码/使用bash作为init-20251022174003651.png"
   ]
 }

@@ -1,5 +1,8 @@
 {
-  "cssTheme": "Primary",
-  "interfaceFontFamily": "",
-  "theme": "system"
+  "cssTheme": "Sanctum",
+  "interfaceFontFamily": "Serif",
+  "theme": "system",
+  "textFontFamily": "Serif",
+  "monospaceFontFamily": "monospace",
+  "accentColor": ""
 }

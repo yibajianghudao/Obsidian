@@ -18,5 +18,23 @@
     }
   ],
   "editor:open-link-in-new-leaf": [],
-  "Enhanced-editing:add-Line0": []
+  "Enhanced-editing:add-Line0": [],
+  "obsidian-heading-shifter:increase-heading": [
+    {
+      "modifiers": [
+        "Mod",
+        "Shift"
+      ],
+      "key": "ArrowRight"
+    }
+  ],
+  "obsidian-heading-shifter:decrease-heading": [
+    {
+      "modifiers": [
+        "Mod",
+        "Shift"
+      ],
+      "key": "ArrowLeft"
+    }
+  ]
 }

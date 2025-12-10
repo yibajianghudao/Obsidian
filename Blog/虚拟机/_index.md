@@ -1,7 +1,7 @@
 ---
-title: 存储
+title: 虚拟机
 type: chapter
-weight: 7
+weight: 8
 ---
 
 {{% children type="list" description=true %}}

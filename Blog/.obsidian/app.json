@@ -9,5 +9,6 @@
   "spellcheck": false,
   "livePreview": false,
   "readableLineLength": false,
-  "foldIndent": false
+  "foldIndent": false,
+  "autoConvertHtml": false
 }
