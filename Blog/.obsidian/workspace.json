@@ -13,26 +13,26 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux/Linux.md",
-                "mode": "source",
+                "file": "Linux/SELinux.md",
+                "mode": "preview",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Linux"
+              "title": "SELinux"
             }
           },
           {
-            "id": "4a9e8dd0722d503b",
+            "id": "790aebb785b9c122",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "存储/磁盘/磁盘空间清理.md",
+                "file": "存储/ceph.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "磁盘空间清理"
+              "title": "ceph"
             }
           }
         ],
@@ -169,13 +169,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "存储/磁盘/磁盘空间清理.md",
+                "file": "存储/ceph.md",
                 "followCursor": true,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "磁盘空间清理 的大纲"
+              "title": "ceph 的大纲"
             }
           },
           {
@@ -220,14 +220,21 @@
       "obsidian42-brat:BRAT": false
     }
   },
-  "active": "4a9e8dd0722d503b",
+  "active": "790aebb785b9c122",
   "lastOpenFiles": [
+    "其它/系统笔记/AMDGPU.md",
+    "其它/系统笔记/_index.md",
+    "Linux/SELinux.md",
+    "其它/系统笔记",
+    "虚拟机/安装操作系统.md",
     "Linux/Linux.md",
     "存储/磁盘/磁盘空间清理.md",
+    "Linux/UFW.md",
+    "存储/磁盘/逻辑卷扩容.md",
+    "存储/磁盘/_index.md",
     "虚拟机/KVM.md",
     "虚拟机/assets/KVM/-20251208101657740.png",
     "虚拟机/assets/KVM",
-    "虚拟机/安装操作系统.md",
     "虚拟机/assets/安装操作系统",
     "虚拟机/assets",
     "虚拟机/_index.md",
@@ -240,8 +247,6 @@
     "题目/_index.md",
     "题目/题目.md",
     "虚拟机",
-    "Linux/SELinux.md",
-    "Linux/UFW.md",
     "Linux/修改密码.md",
     "基础/云计算.md",
     "基础/设备/基础设备.md",
@@ -259,10 +264,6 @@
     "ConvertObsidianToHugo.sh",
     "存储/assets/ceph/统一存储-20251124172851483.png",
     "存储/assets/ceph",
-    "存储/assets",
-    "基础/设备/_index.md",
-    "linshi/测试.md",
-    "linshi/_index.md",
     "虚拟机/assets/安装操作系统/network.png",
     "其它/hugo/assets/Hugo_Relearn/行末添加空格-20251122140923857.png",
     "Linux/assets/修改密码/使用debug shell-20251023094830572.png",

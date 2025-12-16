@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2025-12-06T16:18:33+08:00
+lastmod: 2025-12-16T17:44:20+08:00
 ---
 ceph是一个开源的分布式存储系统,用于构建高性能,高可扩展性,高可靠性的存储集群.常用于云计算,企业数据中心,大规模存储等场景  
 ## 特点  
@@ -83,5 +83,199 @@ Pool,PG,OSD的数量关系：
 - 每个PG包含的OSD数量有Pool的副本数或纠删码决定  
 - 每个OSD承载的PG数量由CRUSH自动均衡((Pool 的 PG 数量 × 副本数) / OSD 总数)
 
+## 部署
+### 准备工作
+安装阿里云`epel`和`docker-ce`软件源
+```
+curl -o /etc/yum.repos.d/docker-ce.repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+curl -o /etc/yum.repos.d/epel-7.repo  http://mirrors.aliyun.com/repo/epel-7.repo
+
+yum clean all 
+yum makecache
+```
+关闭防火墙和SELinux
+```
+systemctl disable --now firewalld
+
+vim /etc/selinux/config
+SELINUX=disabled
+
+reboot
+```
+### 安装chrony
+安装chrony进行时间同步
+```
+yum install chrony -y
+
+# 服务端配置
+vim /etc/chrony.conf
+
+pool ntp.aliyun.com iburst
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+allow 192.168.1.0/24
+local stratum 10
+keyfile /etc/chrony.keys
+logdir /var/log/chrony
+leapsectz right/UTC
+
+# 客户端配置
+vim /etc/chrony.conf
+
+pool 192.168.1.2 iburst # 这里是服务端IP
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+keyfile /etc/chrony.keys
+logdir /var/log/chrony
+leapsectz right/UTC
+```
+安装后使用`chronyc sources -v`在客户端进行验证。  
+### 安装python3
+安装编译用到的软件和openssl 1.1.1(自带的openssl 1.0太旧，python需要至少openssl 1.1.1)
+```
+yum groupinstall "Development Tools"
+yum install bzip2-devel libffi-devel zlib-devel
+#需要EPEL仓库
+#安装openssl11，后期的pip3安装网络相关模块需要用到ssl模块。
+yum install -y openssl11 openssl11-devel
+```
+进入刚解压缩的目录
+```
+cd /root/Python-3.11.0
+```
+在编译之前需要确保python的`configure`脚本能够找到正确的ssl头文件和lib文件位置  
+在Centos上安装`openssl`和`openssl11-devel`软件包之后，相关文件位于：  
+```
+$ whereis openssl11
+openssl11: /usr/bin/openssl11 /usr/lib64/openssl11 /usr/include/openssl11 /usr/share/man/man1/openssl11.1.gz
+
+#此目录下存在ssl.h头文件
+$ ls /usr/include/openssl11/
+openssl
+
+# 此目录下存在lib文件
+$ ls /usr/lib64/openssl11/
+libcrypto.so  libssl.so
+# 实际上该目录中的文件是指向/usr/lib64目录下头文件的软链接
+$ ll /usr/lib64/openssl11/
+total 0
+lrwxrwxrwx. 1 root root 22 Dec 15 14:05 libcrypto.so -> ../libcrypto.so.1.1.1k
+lrwxrwxrwx. 1 root root 19 Dec 15 14:05 libssl.so -> ../libssl.so.1.1.1k
+```
+查看`configure`脚本可以看到，这两个目录的位置是无法被脚本找到的：
+```
+            if test x"$PKG_CONFIG" != x""; then
+                OPENSSL_LDFLAGS=`$PKG_CONFIG openssl --libs-only-L 2>/dev/null`
+                if test $? = 0; then
+                    OPENSSL_LIBS=`$PKG_CONFIG openssl --libs-only-l 2>/dev/null`
+                    OPENSSL_INCLUDES=`$PKG_CONFIG openssl --cflags-only-I 2>/dev/null`
+                    found=true
+                fi
+            fi
+
+            # no such luck; use some default ssldirs
+            if ! $found; then
+                ssldirs="/usr/local/ssl /usr/lib/ssl /usr/ssl /usr/pkg /usr/local /usr"
+            fi
+
+
+fi
+    # note that we #include <openssl/foo.h>, so the OpenSSL headers have to be in
+    # an 'openssl' subdirectory
+
+    if ! $found; then
+        OPENSSL_INCLUDES=
+        for ssldir in $ssldirs; do
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for openssl/ssl.h in $ssldir" >&5
+$as_echo_n "checking for openssl/ssl.h in $ssldir... " >&6; }
+            if test -f "$ssldir/include/openssl/ssl.h"; then
+                OPENSSL_INCLUDES="-I$ssldir/include"
+                OPENSSL_LDFLAGS="-L$ssldir/lib"
+                OPENSSL_LIBS="-lssl -lcrypto"
+                found=true
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+                break
+            else
+                { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+            fi
+        done
+```
+脚本首先会查看`PKG_CONFIG`环境变量，如果不存在，则在预定义的几个目录中查找，我们的`/usr`目录虽然也在预定义的目录中，但是其查找的是`/usr/include/openssl/ssl.h`，而我们的文件在`/usr/include/openssl11/openssl/ssl.h`。同理，脚本查找的lib文件在`/usr/lib`目录下，而我们的文件在`/usr/lib64`(存在软链接在`/usr/lib64/openssl/`)。  
+可以创建软链接来解决：
+```
+$ ln -s /usr/include/openssl11/openssl/ /usr/include/openssl
+$ ln -s /usr/lib64/openssl11/libcrypto.so /usr/lib/libcrypto.so
+$ ln -s /usr/lib64/openssl11/libssl.so /usr/lib/libssl.so
+```
+开始编译:
+```
+./configure --prefix=/usr/python --with-openssl=/usr
+#指定python3的安装目录为/usr/python并编译ssl模块，指定目录好处是后期删除此文件夹就可以完全删除软件了
+make -j $(nproc)
+```
+测试`ssl`是否编译成功：
+```
+$ ./python -c "import ssl; print(ssl.OPENSSL_VERSION)"
+OpenSSL 1.1.1k  FIPS 25 Mar 2021
+```
+安装：
+```
+make install
+#源码编译并安装
+ln -s /usr/python/bin/python3 /usr/bin/python3
+ln -s /usr/python/bin/pip3 /usr/bin/pip3
+```
+### 安装docker
+```
+yum install -y yum-utils device-mapper-persistent-data lvm2
+
+# 需要docker-ce软件仓库
+yum install -y docker-ce-24.0.7-1.el7 docker-ce-cli-24.0.7-1.el7 containerd.io
+```
+配置Docker的"live restore"，即允许在不重新启动所有正在运行的容器的情况下重新启动 Docker 引擎  
+```
+vim /etc/docker/daemon.json
+{
+  "live-restore": true
+}
+
+systemctl restart docker
+```
+### 安装 CEPHADM
+以下内容在服务端上操作：  
+安装 CEPHADM，注意从[releases页面](https://docs.ceph.com/en/latest/releases/#active-releases)查看想要安装版本的最新版本，例如我想要安装的是Octopus版本，那么版本号就是15.2.17:  
+```
+CEPH_RELEASE=15.2.17
+
+curl --silent --remote-name --location https://download.ceph.com/rpm-18.2.0/el9/noarch/cephadm
+```
+然而上面的链接似乎已经失效了，下载下来的是一个404错误消息，可以手动访问ceph仓库，切换到该版本的分支并前往`ceph/src/cephadm/cephadm`查看文件内容，将链接中的`blob`换成`raw`即可通过网络下载：
+```
+curl --silent --remote-name --location https://github.com/ceph/ceph/raw/octopus/src/cephadm/cephadm
+```
+下载之后可以发现`cephadm`实际上是一个python脚本。  
+```
+# 给予运行权限
+chmod +x cephadm
+
+# 添加一个yum存储库，这里需要指定的是版本名称，而不是版本号
+./cephadm add-repo --release octopus
+
+# 安装cephadm命令的软件包
+./cephadm install
+
+# 确认命令是否成功安装
+$ which cephadm
+/usr/sbin/cephadm
+```
+
+
 ## 参考
-[# Red Hat Ceph Storage 架构指南](https://docs.redhat.com/zh-cn/documentation/red_hat_ceph_storage/8/html/architecture_guide/index)
+- [# Red Hat Ceph Storage 架构指南](https://docs.redhat.com/zh-cn/documentation/red_hat_ceph_storage/8/html/architecture_guide/index)
+- [](https://www.wuzao.com/ceph/en/latest/cephadm/install/index.html#cephadm-install-curl)
+- [](https://www.cnblogs.com/Pigs-Will-Fly/p/18671388#_label3_0)
+- [](https://docs.ceph.com/en/latest/cephadm/)
