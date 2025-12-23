@@ -10,5 +10,7 @@
   "livePreview": false,
   "readableLineLength": false,
   "foldIndent": false,
-  "autoConvertHtml": true
+  "autoConvertHtml": true,
+  "showUnsupportedFiles": true,
+  "alwaysUpdateLinks": true
 }

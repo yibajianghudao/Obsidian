@@ -1,18 +1,16 @@
 ---
-date: 2025-12-19T11:09:51+08:00
-lastmod: 2025-12-19T11:09:51+08:00
+weight: 100
+title: 安装操作系统
+slug: 安装操作系统
+description: 
+draft: false
+author: jianghudao
+tags:
+isCJKLanguage: true
+date: 2025-12-23T16:27:51+08:00
+lastmod: 2025-12-23T16:29:11+08:00
 ---
-weight: 100  
-title: 安装操作系统  
-slug: 安装操作系统  
-description:  
-draft: false  
-author: jianghudao  
-tags:  
-isCJKLanguage: true  
-date: 2025-11-20T09:35:47+08:00  
-lastmod: 2025-11-22T14:57:37+08:00
----
+
 ## Windows  
 Windows下载iso镜像后制作安装介质,可以使用Ventoy集成多个PE系统或系统镜像  
 Ventoy 是一个用于制作可启动 U 盘的开源工具。它的独特之处在于允许用户将ISO、WIM、IMG、VHD(x)、EFI等多种类型的系统镜像文件直接拷贝到 U 盘中直接使用，而无需进行额外的格式化或分区操作。用户可以一次性拷贝多个不同类型的镜像文件到同一个启动盘中，Ventoy 会在启动时提供一个菜单供用户选择。  

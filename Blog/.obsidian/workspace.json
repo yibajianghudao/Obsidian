@@ -8,7 +8,7 @@
         "type": "tabs",
         "children": [
           {
-            "id": "b3fcf69caec921b1",
+            "id": "28c9c30c89a32151",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -22,20 +22,35 @@
             }
           },
           {
-            "id": "28c9c30c89a32151",
+            "id": "8787d732309efd20",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux/Systemd.md",
+                "file": "虚拟机/安装操作系统.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Systemd"
+              "title": "安装操作系统"
+            }
+          },
+          {
+            "id": "11424cf1626ec9c2",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "存储/ceph.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "ceph"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -168,13 +183,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "TestLink.md",
+                "file": "存储/ceph.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "TestLink 的大纲"
+              "title": "ceph 的大纲"
             }
           },
           {
@@ -219,20 +234,27 @@
       "obsidian42-brat:BRAT": false
     }
   },
-  "active": "b3fcf69caec921b1",
+  "active": "11424cf1626ec9c2",
   "lastOpenFiles": [
-    "Linux/Systemd.md",
-    "TestLink.md",
-    "_index.md",
-    "存储/ceph.md",
-    "中间件/Smokeping.md",
-    "中间件/Zabbix.md",
-    "中间件/Grafana.md",
-    "虚拟机/Docker.md",
     "虚拟机/安装操作系统.md",
-    "Linux/Linux.md",
+    "TestLink.md",
+    "网络/OAuth.md",
+    "存储/ceph.md",
+    "虚拟机/Docker.md",
+    "Linux/Systemd.md",
+    "网络/远程登录.md",
+    "虚拟机/assets/安装操作系统/network.png",
+    "虚拟机/111.md",
+    "虚拟机/assets/安装操作系统",
+    "中间件/Grafana.md",
+    "Linux/修改密码.md",
+    "Linux/UFW.md",
     "Linux/SELinux.md",
     "虚拟机/_index.md",
+    "中间件/Smokeping.md",
+    "Linux/Linux.md",
+    "_index.md",
+    "中间件/Zabbix.md",
     "虚拟机/KVM.md",
     "中间件/assets/Smokeping/手动安装-20251218163216411.png",
     "docs/Linux/安装操作系统.md",
@@ -242,7 +264,6 @@
     "其它/系统笔记/_index.md",
     "其它/系统笔记",
     "存储/磁盘/磁盘空间清理.md",
-    "Linux/UFW.md",
     "存储/磁盘/逻辑卷扩容.md",
     "存储/磁盘/_index.md",
     "虚拟机/assets/KVM/-20251208101657740.png",
@@ -251,10 +272,6 @@
     "虚拟机/assets",
     "存储/_index.md",
     "基础/_index.md",
-    "其它/_index.md",
-    "Linux/_index.md",
-    "中间件/_index.md",
-    "网络/_index.md",
     "虚拟机",
     "存储/assets/ceph/ceph.svg",
     "存储/assets/ceph/三层架构-20251206151931213.png",
@@ -262,9 +279,7 @@
     "Linux/assets/Linux/top.png",
     "Linux/assets/Linux",
     "Script/ConvertObsidianToHugo.sh",
-    "Script",
     "存储/assets/ceph/统一存储-20251124172851483.png",
-    "虚拟机/assets/安装操作系统/network.png",
     "其它/hugo/assets/Hugo_Relearn/行末添加空格-20251122140923857.png",
     "Linux/assets/修改密码/使用debug shell-20251023094830572.png"
   ]
