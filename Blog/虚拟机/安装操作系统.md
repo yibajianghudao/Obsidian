@@ -1,4 +1,7 @@
 ---
+date: 2025-12-19T11:09:51+08:00
+lastmod: 2025-12-19T11:09:51+08:00
+---
 weight: 100  
 title: 安装操作系统  
 slug: 安装操作系统  
@@ -83,8 +86,9 @@ sudo mv /etc/yum.repos.d/CentOS-*.repo /etc/yum.repos.d/backup/
 sudo curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo  
 # EPEL扩展源  
 sudo curl -o /etc/yum.repos.d/epel.repo https://mirrors.aliyun.com/repo/epel-7.repo  
-sudo yum clean all        # 清理旧缓存  
-sudo yum makecache fast   # 生成新缓存  
+# 清理旧缓存,生成新缓存
+sudo yum clean all
+sudo yum makecache fast
 # 验证是否生效  
 sudo yum repolist  
 ```  
