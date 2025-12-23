@@ -10,5 +10,5 @@
   "livePreview": false,
   "readableLineLength": false,
   "foldIndent": false,
-  "autoConvertHtml": false
+  "autoConvertHtml": true
 }

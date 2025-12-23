@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2025-12-23T10:36:51+08:00
+lastmod: 2025-12-23T15:42:59+08:00
 ---
 ceph是一个开源的分布式存储系统,用于构建高性能,高可扩展性,高可靠性的存储集群.常用于云计算,企业数据中心,大规模存储等场景  
 ## 特点  
@@ -84,6 +84,14 @@ Pool,PG,OSD的数量关系：
 - 每个OSD承载的PG数量由CRUSH自动均衡((Pool 的 PG 数量 × 副本数) / OSD 总数)
 
 ## 部署
+准备部署在三台服务器上：
+
+| 主机名   | IP          | 磁盘数量 | 操作系统    |
+| ----- | ----------- | ---- | ------- |
+| ceph1 | 192.168.1.2 | 1+12 | CentOS7 |
+| ceph2 | 192.168.1.3 | 1+12 | CentOS7 |
+| ceph3 | 192.168.1.4 | 1+12 | CentOS7 |
+
 ### 准备工作
 Ceph集群上的主机都需要满足以下要求：
 - Python3
@@ -91,6 +99,8 @@ Ceph集群上的主机都需要满足以下要求：
 - Podman or Docker 来运行容器
 - 时间同步(Chrony或者ntpd)
 - LVM2 配置存储设备
+
+下面提及的准备工作都要在集群中的每台机器上运行：
 #### 配置软件源
 安装阿里云`epel`和`docker-ce`软件源
 ```
@@ -227,10 +237,10 @@ $ ln -s /usr/lib64/openssl11/libssl.so /usr/lib/libssl.so
 开始编译:
 ```
 ./configure --prefix=/usr/python --with-openssl=/usr
-#指定python3的安装目录为/usr/python并编译ssl模块，指定目录好处是后期删除此文件夹就可以完全删除软件了
+#指定python3的安装目录为/usr/python并编译ssl模块，指定目录好处是后期删除此文件夹就可以完全删除python
 make -j $(nproc)
 ```
-测试`ssl`是否编译成功：
+测试`ssl 1.1.1`是否编译成功：
 ```
 $ ./python -c "import ssl; print(ssl.OPENSSL_VERSION)"
 OpenSSL 1.1.1k  FIPS 25 Mar 2021
@@ -259,8 +269,8 @@ vim /etc/docker/daemon.json
 systemctl restart docker
 ```
 ### 安装 CEPHADM
-以下内容在 主服务器(ceph1) 上操作：  
-安装 CEPHADM，注意从[releases页面](https://docs.ceph.com/en/latest/releases/#active-releases)查看想要安装版本的最新版本，例如我想要安装的是Octopus版本，那么版本号就是15.2.17:  
+`cephadm`需要集群中的每个机器安装
+从[releases页面](https://docs.ceph.com/en/latest/releases/#active-releases)查看想要安装的大版本的最新版本，例如我想要安装的是Octopus版本，那么版本号就是15.2.17:  
 ```
 CEPH_RELEASE=15.2.17
 
@@ -286,9 +296,10 @@ $ which cephadm
 /usr/sbin/cephadm
 ```
 ### 创建集群
-首先需要确保：
+创建集群及之后的添加主机，添加OSD等操作在**主服务器(ceph1)**上操作：  
+创建集群之前需要确保：
 1. 主机名不能太长，例如`localhost.localdomain`就太长
-2. 主机上存在主机名的DNS解析
+2. 主机上存在本主机名的DNS解析
 3. SSH端口是默认的`22`，否则需要手动传入SSH配置文件
 4. 需要一个集群内部其他机器可访问的IP地址
 
@@ -303,11 +314,14 @@ vim /etc/hosts
 ::1         localhost ceph1
 192.168.1.2 localhost ceph1
 
+192.168.1.3 localhost ceph2
+192.168.1.4 localhost ceph3
+
 # 创建一个SSH的配置文件
 vim ssh_config
 
 Host *
-  Port 5678
+  Port 2222
   User root
   StrictHostKeyChecking no
 ```
@@ -377,7 +391,6 @@ ceph3  192.168.1.4  _admin
 状态没有显示，可能是已经`online`了，可以查看运行的容器，观察有没有运行在新的主机上：
 ```
 ceph orch ps
-ceph orch ps
 NAME                 HOST   STATUS         REFRESHED  AGE  VERSION  IMAGE NAME                                IMAGE ID      CONTAINER ID  
 alertmanager.ceph1   ceph1  running (39m)  2m ago     4h   0.20.0   quay.io/prometheus/alertmanager:v0.20.0   0881eb8f169f  84a620ebf962  
 crash.ceph1          ceph1  running (4h)   2m ago     4h   15.2.17  quay.io/ceph/ceph:v15                     93146564743f  8a574d091104  
@@ -403,7 +416,7 @@ ceph orch device ls
 ```
 如果有存在的数据(lvm,文件系统,磁盘分区等)导致不可用，可以先手动擦除存在的数据：
 ```
-$ ceph orch device zap ceph1 /dev/sdb --force
+ceph orch device zap ceph1 /dev/sdb --force
 ```
 可以手动指定设备：
 ```
@@ -417,13 +430,13 @@ ceph orch apply osd --all-available-devices
 ### OSD
 创建OSD之前可以先手动擦除可能存在的数据：
 ```
-$ ceph orch device zap ceph1 /dev/sdb --force
+ceph orch device zap ceph1 /dev/sdb --force
 ```
 列出所有节点上可用的磁盘：
 ```
 ceph orch device ls
 ```
-查看所有OSD：
+查看所有OSD，这会按照不同的主机分开显示：
 ```
 $ ceph osd tree
 ID  CLASS  WEIGHT    TYPE NAME       STATUS  REWEIGHT  PRI-AFF
@@ -577,6 +590,7 @@ Using recent ceph image quay.io/ceph/ceph@sha256:c08064dde4bba4e72a1f55d90ca32df
 ```
 ### 删除集群
 ```
+# 查看集群的fsid
 $ ceph -s
   cluster:
     id:     501cba44-dd42-11f0-bf96-68a8282ec412
@@ -607,7 +621,7 @@ ceph2  192.168.1.3  _admin
 ceph3  192.168.1.4  _admin          
 ```
 ### 结构
-ceph的daemon由systemd管理，通过docker启动在容器中运行，在添加到集群的主机中的`/var/lib/ceph`目录下存储集群使用daemon的内容：
+ceph的daemon由systemd管理，通过docker或podman在容器中运行，在添加到集群的主机中的`/var/lib/ceph`目录下存储集群中daemon的内容：
 ```
 /var/lib/ceph/
 ├── 59f56c2c-dafa-11f0-a750-68a8282ec412
@@ -652,7 +666,7 @@ ceph的daemon由systemd管理，通过docker启动在容器中运行，在添加
     │   ├── unit.poststop
     │   └── unit.run
 ```
-在目录中存在集群fsid的文件夹，内部是每个daemon的文件，比如`unit.run`中存储的是daemon的启动命令，这些文件在daemon启动使用的systemd service文件中被使用，例如:
+在目录中存在以集群fsid命名的目录，内部是该集群在这台主机上运行的daemon的目录，目录中存储着daemon的数据，比如`unit.run`中存储的是daemon的启动命令，这些文件在ceph的**systemd模板单元**中被使用，例如:
 ```
 cat /etc/systemd/system/ceph-59f56c2c-dafa-11f0-a750-68a8282ec412@.service
 
@@ -691,7 +705,11 @@ StartLimitBurst=5
 WantedBy=ceph-59f56c2c-dafa-11f0-a750-68a8282ec412.target
 
 ```
-其中使用了`/var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/%i/unit.run`作为daemon容器的启动脚本:
+其中使用了`/var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/%i/unit.run`作为daemon容器的启动脚本，其中的`%i`读取自实际启动的单元名，例如对于:
+```
+systemctl start 59f56c2c-dafa-11f0-a750-68a8282ec412@mon.ceph2.service
+```
+它会读取`/var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/mon.ceph2/unit.run`作为启动文件:
 ```
 cat /var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/mon.ceph2/unit.run 
 set -e
@@ -700,7 +718,7 @@ set -e
 ! /bin/docker rm -f ceph-59f56c2c-dafa-11f0-a750-68a8282ec412-mon.ceph2 2> /dev/null
 /bin/docker run --rm --ipc=host --net=host --entrypoint /usr/bin/ceph-mon --privileged --group-add=disk --name ceph-59f56c2c-dafa-11f0-a750-68a8282ec412-mon.ceph2 -e CONTAINER_IMAGE=quay.io/ceph/ceph:v15 -e NODE_NAME=ceph2 -v /var/run/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412:/var/run/ceph:z -v /var/log/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412:/var/log/ceph:z -v /var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/crash:/var/lib/ceph/crash:z -v /var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/mon.ceph2:/var/lib/ceph/mon/ceph-ceph2:z -v /var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/mon.ceph2/config:/etc/ceph/ceph.conf:z -v /dev:/dev -v /run/udev:/run/udev quay.io/ceph/ceph:v15 -n mon.ceph2 -f --setuser ceph --setgroup ceph --default-log-to-file=false --default-log-to-stderr=true '--default-log-stderr-prefix=debug ' --default-mon-cluster-log-to-file=false --default-mon-cluster-log-to-stderr=true
 ```
-> systemd service中的`%i`参数指
+
 ## 排错
 ### mon daemon错误
 在执行`ceph -s`观察到demon有三个错误:
@@ -1169,8 +1187,8 @@ purged osd.18
     pgs:     1 active+clean
 ```
 ## 参考
-- [# Red Hat Ceph Storage 架构指南](https://docs.redhat.com/zh-cn/documentation/red_hat_ceph_storage/8/html/architecture_guide/index)
-- [](https://www.wuzao.com/ceph/en/latest/cephadm/install/index.html#cephadm-install-curl)
-- [](https://www.cnblogs.com/Pigs-Will-Fly/p/18671388#_label3_0)
-- [](https://docs.ceph.com/en/latest/cephadm/)
-- [](https://www.yuque.com/xianzhou-eiffx/aklhoc/vz2kwrequbkhoxhv)
+- [Red Hat Ceph Storage 架构指南](https://docs.redhat.com/zh-cn/documentation/red_hat_ceph_storage/8/html/architecture_guide/index)
+- [Centos7.9离线部署ceph（octopus）](https://www.cnblogs.com/Pigs-Will-Fly/p/18671388#_label3_0)
+- [ceph官方文档](https://docs.ceph.com/en/latest/cephadm/)
+- [ceph官方文档-中文机翻](https://www.wuzao.com/ceph/en/latest/cephadm/install/index.html#cephadm-install-curl)
+- [分布式存储ceph](https://www.yuque.com/xianzhou-eiffx/aklhoc/vz2kwrequbkhoxhv)

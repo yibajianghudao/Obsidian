@@ -4,21 +4,35 @@
     "type": "split",
     "children": [
       {
-        "id": "f3e3d898555c3d6f",
+        "id": "adc99152da2e7933",
         "type": "tabs",
         "children": [
           {
-            "id": "b3fed06fc477fc37",
+            "id": "b3fcf69caec921b1",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "存储/ceph.md",
+                "file": "TestLink.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "ceph"
+              "title": "TestLink"
+            }
+          },
+          {
+            "id": "28c9c30c89a32151",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Linux/Systemd.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "Systemd"
             }
           }
         ]
@@ -154,13 +168,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "存储/ceph.md",
-                "followCursor": true,
+                "file": "TestLink.md",
+                "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "ceph 的大纲"
+              "title": "TestLink 的大纲"
             }
           },
           {
@@ -205,8 +219,11 @@
       "obsidian42-brat:BRAT": false
     }
   },
-  "active": "b3fed06fc477fc37",
+  "active": "b3fcf69caec921b1",
   "lastOpenFiles": [
+    "Linux/Systemd.md",
+    "TestLink.md",
+    "_index.md",
     "存储/ceph.md",
     "中间件/Smokeping.md",
     "中间件/Zabbix.md",
@@ -238,10 +255,7 @@
     "Linux/_index.md",
     "中间件/_index.md",
     "网络/_index.md",
-    "题目/_index.md",
-    "题目/题目.md",
     "虚拟机",
-    "Linux/修改密码.md",
     "存储/assets/ceph/ceph.svg",
     "存储/assets/ceph/三层架构-20251206151931213.png",
     "Linux/assets/Linux/zombies-turnoff-800x467.webp",
