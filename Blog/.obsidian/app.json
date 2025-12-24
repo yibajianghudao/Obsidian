@@ -8,9 +8,10 @@
   "strictLineBreaks": true,
   "spellcheck": false,
   "livePreview": false,
-  "readableLineLength": false,
+  "readableLineLength": true,
   "foldIndent": false,
   "autoConvertHtml": true,
   "showUnsupportedFiles": true,
-  "alwaysUpdateLinks": true
+  "alwaysUpdateLinks": true,
+  "showLineNumber": false
 }

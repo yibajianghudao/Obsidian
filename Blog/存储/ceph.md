@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2025-12-23T16:47:07+08:00
+lastmod: 2025-12-24T10:49:06+08:00
 ---
 ceph是一个开源的分布式存储系统,用于构建高性能,高可扩展性,高可靠性的存储集群.常用于云计算,企业数据中心,大规模存储等场景  
 ## 特点  
@@ -28,22 +28,42 @@ ceph的特点:
 	- 支持块存储,文件存储,对象存储  
 	- 支持自定义接口,支持多语言驱动  
 ## 架构  
-### 存储  
-#### 统一存储  
-- ceph支持: 文件存储 + 块存储 + 对象存储  
-- 传统存储支持: 文件存储 + 块存储  
-#### 原生对象存储  
-ceph将文件转换为4MB的对象集合,对象唯一标识符保存在kv数据库中,提供扁平寻址空间,提供规模扩展和性能提升可行性.  
 ### 三层架构  
 ![](assets/ceph/统一存储-20251124172851483.png)  
 ![](assets/ceph/三层架构-20251206151931213.png)
 ![](assets/ceph/ceph.svg)
 #### RADOS  
 ceph的核心是`RADOS`对象存储系统,它把一切数据看作对象,在这一层实现数据的复制,强一致性,不直接对用户提供服务(通过上面提到的多种方式访问).`RADOS`具有自我修复,自我管理的功能.  
-`RADOS`由Monitor,MDS,OSD等系统组成.  
-##### Monitor  
-##### MDS  
-##### OSD  
+Ceph 集群由多个核心 daemon组成，每个组件负责特定功能，通常需要多实例部署以实现冗余和高可用性（HA）。
+##### Monitors (ceph-mon)
+主要职责是：
+- 维护集群状态映射(cluster state map)，这些映射是 Ceph daemon 相互协调的关键信息，包括:
+	- Monitor map
+	- Manager map
+	- OSD map
+	- MDS map
+	- CRUSH map
+- 负责daemon和client之间的认证管理。  
+
+通常至少需要部署3个Monitors以实现冗余和高可用(需要奇数个以形成quorum)。
+##### Managers (ceph-mgr)
+主要职责：
+- 跟踪运行时指标和集群当前状态:
+	- 存储利用率
+	- 性能指标
+	- 系统负载
+- 托管基于Python的插件模块，用于管理和暴露集群信息，常见的有：
+	- web-based Ceph Dashboard(仪表盘)和Prometheus监控模块
+
+通常至少部署 2 个 Managers，实现高可用（一个 active，一个 standby，自动 failover）。  
+##### Metadata Server (ceph-mds)
+主要职责:
+- 为CephFS文件系统存储文件元数据(inode,目录结构等)
+- 使CephFS客户端能执行基本文件操作(ls,find等)，而不对底层存储集群造成负担。
+
+根据CephFS负载，至少部署一个mds，生产环境推荐部署两个或更多  
+> 仅在启用CephFS时需要，如果不使用文件系统接口，可以不部署MDS.
+##### OSD 
 OSD具有多种底层驱动  
 - filestore: 需要磁盘具有文件系统,按照文件系统的规则进行读写  
 - kvstore  
@@ -57,6 +77,14 @@ ceph提供了多种方式给客户端访问:
 - `CephFS`: 提供**文件存储**接口,提供**POSIX接口**,支持**FUSE**,使用它必须启动**MDS服务进程**  
 #### 硬件平台  
 分布式的服务器集群通过**ceph服务**对外提供服务.  
+
+### 存储  
+#### 统一存储  
+- ceph支持: 文件存储 + 块存储 + 对象存储  
+- 传统存储支持: 文件存储 + 块存储  
+#### 原生对象存储  
+ceph将文件转换为4MB的对象集合,对象唯一标识符保存在kv数据库中,提供扁平寻址空间,提供规模扩展和性能提升可行性.  
+
 ## 核心组件  
 ### 池(Pool)  
 Ceph 存储集群将数据对象存储在名为 **Pool（池）** 的逻辑分区中。  
@@ -718,7 +746,34 @@ set -e
 ! /bin/docker rm -f ceph-59f56c2c-dafa-11f0-a750-68a8282ec412-mon.ceph2 2> /dev/null
 /bin/docker run --rm --ipc=host --net=host --entrypoint /usr/bin/ceph-mon --privileged --group-add=disk --name ceph-59f56c2c-dafa-11f0-a750-68a8282ec412-mon.ceph2 -e CONTAINER_IMAGE=quay.io/ceph/ceph:v15 -e NODE_NAME=ceph2 -v /var/run/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412:/var/run/ceph:z -v /var/log/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412:/var/log/ceph:z -v /var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/crash:/var/lib/ceph/crash:z -v /var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/mon.ceph2:/var/lib/ceph/mon/ceph-ceph2:z -v /var/lib/ceph/59f56c2c-dafa-11f0-a750-68a8282ec412/mon.ceph2/config:/etc/ceph/ceph.conf:z -v /dev:/dev -v /run/udev:/run/udev quay.io/ceph/ceph:v15 -n mon.ceph2 -f --setuser ceph --setgroup ceph --default-log-to-file=false --default-log-to-stderr=true '--default-log-stderr-prefix=debug ' --default-mon-cluster-log-to-file=false --default-mon-cluster-log-to-stderr=true
 ```
-
+### Web
+Web服务器的信息在集群刚创建的时候会打印在输出中，包括Dashboard运行的端口，初始Admin密码等。  
+后续如果要查看端口信息可以使用:
+```
+ceph mgr services
+{
+    "dashboard": "https://localhost.localdomain:8443/",
+    "prometheus": "http://localhost.localdomain:9283/"
+}
+```
+使用`ss`查看到它是允许任意IP访问的:
+```
+ss -tnulp | grep 8443
+tcp    LISTEN     0      5      [::]:8443               [::]:*                   users:(("ceph-mgr",pid=25572,fd=46))
+```
+因此可以直接在浏览器通过`ip:8443`访问  
+使用下面的命令可以查看Dashboard用户的信息:
+```
+ceph dashboard ac-user-show admin
+{"username": "admin", "password": "$2b$12$hYefUfyn1WXsDFhxl3F8guW76ShLdg2DleGP3wbMumtpYba7oVKdu", "roles": ["administrator"], "name": null, "email": null, "lastUpdate": 1766370132, "enabled": true, "pwdExpirationDate": null, "pwdUpdateRequired": true}
+```
+可以看到的密码是加密后的密码，此时我们不知道密码，可以直接修改密码：
+```
+echo "YourNewStrongPassword123" > /tmp/dashboard-admin-passwd
+chmod 600 /tmp/dashboard-admin-passwd
+ceph dashboard ac-user-set-password admin -i /tmp/dashboard-admin-passwd
+rm /tmp/dashboard-admin-passwd
+```
 ## 排错
 ### mon daemon错误
 在执行`ceph -s`观察到demon有三个错误:
@@ -1137,6 +1192,13 @@ ID   CLASS  WEIGHT     TYPE NAME       STATUS  REWEIGHT  PRI-AFF
  19                 0  osd.19            down         0  1.00000
 ```
 `osd.19`确实是挂掉了，但是在这个磁盘上已经重新启动了另外一个osd。  
+移除之前先要设置flag:
+```
+ceph osd set norecover
+ceph osd set norebalance
+ceph osd set nobackfill
+ceph osd set noout
+```
 确认这个osd.19已经down并且weight是0，所以可以移除这个osd:
 ```
 # 移除daemon
@@ -1186,6 +1248,14 @@ purged osd.18
     usage:   36 GiB used, 156 TiB / 156 TiB avail
     pgs:     1 active+clean
 ```
+此时`health`提示还有flag存在，移除：
+```
+ceph osd unset norecover
+ceph osd unset norebalance
+ceph osd unset nobackfill
+ceph osd unset noout
+```
+
 ## 参考
 - [Red Hat Ceph Storage 架构指南](https://docs.redhat.com/zh-cn/documentation/red_hat_ceph_storage/8/html/architecture_guide/index)
 - [Centos7.9离线部署ceph（octopus）](https://www.cnblogs.com/Pigs-Will-Fly/p/18671388#_label3_0)
