@@ -8,7 +8,21 @@
         "type": "tabs",
         "children": [
           {
-            "id": "28c9c30c89a32151",
+            "id": "d559069e78b24c44",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "其它/hugo/Hugo_Relearn.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "Hugo_Relearn"
+            }
+          },
+          {
+            "id": "d4ec4fef78d1ab3e",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -22,35 +36,21 @@
             }
           },
           {
-            "id": "8787d732309efd20",
+            "id": "3ccda174c7fcf4e6",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "虚拟机/安装操作系统.md",
+                "file": "Link.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "安装操作系统"
-            }
-          },
-          {
-            "id": "11424cf1626ec9c2",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "存储/ceph.md",
-                "mode": "source",
-                "source": true
-              },
-              "icon": "lucide-file",
-              "title": "ceph"
+              "title": "Link"
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -107,8 +107,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200,
-    "collapsed": true
+    "width": 200
   },
   "right": {
     "id": "fcea3789067d1396",
@@ -184,13 +183,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "存储/ceph.md",
+                "file": "TestLink.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "ceph 的大纲"
+              "title": "TestLink 的大纲"
             }
           },
           {
@@ -235,12 +234,17 @@
       "obsidian42-brat:BRAT": false
     }
   },
-  "active": "11424cf1626ec9c2",
+  "active": "d4ec4fef78d1ab3e",
   "lastOpenFiles": [
-    "虚拟机/安装操作系统.md",
+    "其它/hugo/Hugo_Relearn.md",
     "TestLink.md",
-    "网络/OAuth.md",
+    "Link.md",
     "存储/ceph.md",
+    "虚拟机/安装操作系统.md",
+    "存储/ceph笔记.zip",
+    "存储/ceph.tar.gz",
+    "存储/33sDdlH1Lhozjios.ceph.tar.gz",
+    "网络/OAuth.md",
     "虚拟机/Docker.md",
     "Linux/Systemd.md",
     "网络/远程登录.md",
@@ -271,15 +275,10 @@
     "虚拟机/assets/KVM",
     "虚拟机/assets/安装操作系统",
     "虚拟机/assets",
-    "存储/_index.md",
-    "基础/_index.md",
-    "虚拟机",
     "存储/assets/ceph/ceph.svg",
     "存储/assets/ceph/三层架构-20251206151931213.png",
     "Linux/assets/Linux/zombies-turnoff-800x467.webp",
     "Linux/assets/Linux/top.png",
-    "Linux/assets/Linux",
-    "Script/ConvertObsidianToHugo.sh",
     "存储/assets/ceph/统一存储-20251124172851483.png",
     "其它/hugo/assets/Hugo_Relearn/行末添加空格-20251122140923857.png",
     "Linux/assets/修改密码/使用debug shell-20251023094830572.png"
