@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-12-25T11:14:43+08:00
-lastmod: 2025-12-25T17:00:14+08:00
+lastmod: 2025-12-26T09:12:53+08:00
 ---
 
 
@@ -145,6 +145,7 @@ BECOME password:
 ### ROCKy ----- 24141
 
 ### LINUX-LINUX
+### LINUX(2024)
 
 ## mon daemon错误
 

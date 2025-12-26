@@ -8,9 +8,10 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2025-12-25T09:42:24+08:00
+lastmod: 2025-12-26T15:24:07+08:00
 ---
 
+## 概述
 Ceph 是一个提供**数据冗余**的**集群化**和**分布式**存储管理器:
 
 - 存储管理器: Ceph 是帮助存储资源来存储数据的软件。存储资源有多种形式：硬盘驱动器（HDD）、固态驱动器（SSD）、磁带、软盘、穿孔纸带等都是存储资源的形式。
@@ -33,6 +34,14 @@ Ceph是一个开源的分布式存储系统,用于构建高性能,高可扩展�
 - 接口丰富  
 	- 支持块存储,文件存储,对象存储  
 	- 支持自定义接口,支持多语言驱动  
+
+统一存储：  
+- ceph支持: 文件存储 + 块存储 + 对象存储  
+- 传统存储支持: 文件存储 + 块存储  
+
+原生对象存储：  
+ceph将文件转换为4MB的对象集合,对象唯一标识符保存在kv数据库中,提供扁平寻址空间,提供规模扩展和性能提升可行性.  
+
 ## 架构  
 ![](assets/ceph/统一存储-20251124172851483.png)  
 ![](assets/ceph/三层架构-20251206151931213.png)
@@ -55,22 +64,24 @@ Monitors, daemon名称:`ceph-mon`
 ##### MGR
 Managers, daemon名称:`ceph-mgr`  
 主要职责：
+- 平衡集群数据，均匀分配负载
 - 跟踪运行时指标和集群当前状态:
 	- 存储利用率
 	- 性能指标
 	- 系统负载
 - 托管基于Python的插件模块，用于管理和暴露集群信息，常见的有：
-	- web-based Ceph Dashboard(仪表盘)和Prometheus监控模块
+	- web-based Ceph Dashboard(仪表盘)
+	- Prometheus监控模块
 
 通常至少部署 2 个 Managers，实现高可用（一个 active，一个 standby，自动 failover）。  
 ##### OSD
 Object Storage Daemons, daemon名称:`ceph-osd`  
 主要职责:
-- 实际存储数据
+- 实际存储集群大部分数据
 - 处理数据的replication(复制),recovery(恢复),rebalancing(再平衡)。
-	- 通过心跳机制(heartbeat)向Monitors和Managers报告自身及其他OSD的状态，提供监控信息
+- 通过心跳机制(heartbeat)向Monitors和Managers报告自身及其他OSD的状态，提供监控信息
 
-通常每个OSD对应一块磁盘，Ceph集群至少需要3个OSDs，以实现高可用和冗余  
+通常每个OSD由一块磁盘组成，也可以由设备组合。Ceph集群至少需要3个OSDs，以实现高可用和冗余。  
 
 OSD具有多种底层驱动  
 - filestore: 需要磁盘具有文件系统,按照文件系统的规则进行读写  
@@ -88,38 +99,84 @@ Metadata Server, daemon名称:`ceph-mds`
 > 仅在启用CephFS时需要，如果不使用文件系统接口，可以不部署MDS.
 
 #### 存储数据
-##### 池(Pool)  
-Ceph 存储集群将数据对象存储在名为 **Pool（池）** 的逻辑分区中。  
-Ceph 管理员可以创建用于特定类型数据的池，例如块设备、对象网关，或用于隔离不同用户组。  
-从 Ceph 客户端的视角来看，池表现为一个具有访问控制的逻辑分区；但实际上，**池在 Ceph 集群的数据分布、存储策略和耐久性机制中扮演着关键角色**。  
+##### Pool
+存储池(Pool)是Ceph存储对象的逻辑分区.存储池提供以下关键功能:
+1. 弹性(Resilience):存储池可以设置在不丢失数据的情况下允许故障的OSD数量:
+	- 副本存储池(Replicated Pools):通过保存对象的多个副本实现,典型的配置是`size=3`(存在一个主对象加两个副本)
+	- 纠删码存储池(Erasure Coded Pools):通过将数据切分为`k`个数据块和`m`个编码块来实现,`,`的值决定了允许故障的OSD数量.
+2. 规制组(PG):可以为存储池设置PG数量,通常的配置是每个OSD大约负责100个PGs,以在不消耗过多计算资源的情况下实现负载均衡.
+3. CRUSH规则(CRUSH Rules):可以为特定的存储池创建自定义CRUSH规则.CRUSH规则决定了数据及其副本(或纠删码)在集群中的位置.
+4. 快照(snapshots):可以对特定的存储池创建快照,保留其在某一时刻的数据状态.
+5. 配额(quotas):可以限制存储池的最大字节数或最大对象数.
 
-池类型(Pool Type):  
-池类型决定池使用的数据持久性方式，并且对客户端透明。池的数据耐久策略在整个池范围内保持统一，并在池创建后不可修改。  
-池支持两种主要的数据持久方式：  
-- **副本池(Replica Pools)**：使用多个深度副本，并通过 CRUSH 将其分布到不同硬件上，确保在局部硬件故障时仍能保持数据可用。  
-- **纠删码池(Erasure-Coded Pools)**：纠删码池将每个对象分成 K+M 个碎片，其中 K 为数据碎片，M 为编码碎片。K+M 的总数代表存储一个对象所需的 OSD 数量，而 M 表示在最多 M 个 OSD 故障的情况下仍然能够恢复数据。  
-##### 放置组(Placement Groups, PG)
-Ceph 将一个池切分为多个放置组（PG）。PG将对象作为一个组放入OSD。Ceph在内部以PG为粒度管理数据，这比直接管理单个RADOS对象具有更好的扩展性。
-- PG 是对象与 OSD 之间的中间映射单元  
-- CRUSH 算法根据对象名称计算其所属 PG，并计算该 PG 的 Acting Set（负责存储该 PG 的 OSD 集合）  
-- 每个对象先映射到 PG，再由 PG 映射到多个 OSD  
-管理员在创建或调整pool时设置 PG 数量（即 pool 被切成多少个 PG）  
+> 池类型决定池使用的数据持久性方式(副本或纠删码)，并且对客户端透明。池的数据耐久策略在整个池范围内保持统一，并在池创建后不可修改。  
+
+> [pools](https://docs.ceph.com/en/latest/rados/operations/pools/) 
+
+##### PG
+放置组(Placement Groups, PG)  
+
+Ceph 将一个池切分为多个放置组(PG).PG同样是Ceph存储对象的逻辑分区,Ceph在内部以PG为粒度管理数据，这比直接管理单个RADOS对象节省资源开销且具有更好的扩展性。
+
+PG在对象和OSD之间扮演"中间层"的角色,一个PG聚合了存储池中的若干对象。Ceph 会将 PG 映射到一组 OSD。例如，如果一个存储池的副本数为 3，那么每个 PG 将被映射到 3 个 OSD
+
+Ceph 客户端会计算对象应属于哪个归置组,具体方法是对对象 ID 进行哈希运算，并根据定义的存储池中的 PG 数量以及存储池的 ID 进行操作.    
+
+当一个 OSD 发生故障时，Ceph 会通过扫描受影响的 PG，找到该 PG 在其他正常 OSD 上的存活副本，并开始恢复过程，以确保数据达到预定的副本数。这种机制允许 Ceph 集群自我修复并自动重新平衡数据。
+
+管理员可以为pool设置 PG 数量(即 pool 被切成多少个 PG),在较新版本的Ceph中,Manager守护进程可以自动计算所需的PG数量并进行调整.每个存储池都有一个 `pg_autoscale_mode` 属性，可以设置为：
+- `off`：禁用自动扩缩容。由管理员负责设置每个存储池的 `pg_num`。
+- `warn`：当建议的 PG 数量与当前值偏差较大时，触发 `HEALTH_WARN` 健康警告。
+- `on`：自动调整存储池的 PG 数量。  
+
+
+> [placement-groups](https://docs.ceph.com/en/latest/rados/operations/placement-groups/)  
+> [New in Nautilus: PG merging and autotuning](https://ceph.io/en/news/blog/2019/new-in-nautilus-pg-merging-and-autotuning/)
 ##### CRUSH
-CRUSH(Controlled Replication Under Scalable Hashing 受控复制的可扩展哈希算法)是一种基于哈希的数据分布算法。以数据唯一标识符，当前存储集群的拓扑结构以及数据备份策略作为CRUSH输入，可以随时随地通过计算获取数据所在的底层存储设备位置并直接与其通信，从而避免查表操作，实现去中心化和高度并发。  
-CRUSH同时支持多种数据备份策略，如镜像，RAID，纠删码等。并受控地将数据的多个备份映射到集群不同物理区域中的底层存储设备之上，从而保证数据可靠性。  
-##### OSD
+CRUSH(Controlled Replication Under Scalable Hashing 受控复制的可扩展哈希算法)是一种基于哈希的数据分布算法。以数据唯一标识符，当前存储集群的拓扑结构以及数据备份策略作为CRUSH输入，可以随时随地通过计算获取数据所在的底层存储设备位置并直接与其通信，CRUSH 使得 Ceph 客户端能够直接与 OSD 通信，而不是通过一个中心化的服务器或代理。通过这种算法分布计算存储位置，Ceph 实现了去中心化、高度并发和高可扩展性，避免了单点故障、性能瓶颈以及扩展性的物理限制。  
 
-Pool,PG,OSD的数量关系：  
-- Pool中PG的数量由ceph管理员设定(pg_num)  
-- 每个PG包含的OSD数量有Pool的副本数或纠删码决定  
-- 每个OSD承载的PG数量由CRUSH自动均衡((Pool 的 PG 数量 × 副本数) / OSD 总数)
+CRUSH使用(CRUSH Map)将数据映射到OSD并根据配置的复制策略和故障域在集群中分布数据.CRUSH Map包含一个OSD列表,一个"buckets(桶)"层级结构,以及管理CRUSH在集群池中复制数据的规则.
 
-##### 统一存储  
-- ceph支持: 文件存储 + 块存储 + 对象存储  
-- 传统存储支持: 文件存储 + 块存储  
+通过反映安装环境的底层物理组织，CRUSH 可以模拟并以此应对相关联设备同时故障的可能性。与 CRUSH 层级结构相关的因素包括机箱、机架、物理距离、共享电源、共享网络和故障域(failure domains)。通过将这些信息编码进 CRUSH map中，CRUSH 放置策略可以在保持所需分布的同时，将对象副本分布在不同的故障域中。例如，为了应对并发故障的可能性，可能需要确保数据副本位于处于不同机架、机架位、电源、控制器或物理位置的设备上。
 
-##### 原生对象存储  
-ceph将文件转换为4MB的对象集合,对象唯一标识符保存在kv数据库中,提供扁平寻址空间,提供规模扩展和性能提升可行性.  
+部署 OSD 时，它们会自动添加到 CRUSH map中的 host 桶下，该桶以运行该 OSD 的节点命名。这种行为结合配置的 CRUSH 故障域，可确保副本或纠删码分片分布在不同主机上，并且单个主机故障或其他类型的故障不会影响可用性。
+
+###### CRUSH Location
+OSD 在 CRUSH map层级结构中的位置被称为其 **CRUSH location**。CRUSH locayion的规范采用键值对列表的形式。例如，如果一个 OSD 位于特定的行（row）、机架（rack）、机箱（chassis）和主机（host）中，并且是“default” CRUSH 根节点的一部分，则其 CRUSH location可以指定如下：
+```
+root=default row=a rack=a2 chassis=a2a host=a2a1
+```
+1. 键的顺序无关紧要
+2. 键名必须是有效的CRUSH类型,默认情况下的CRUS类型有:`root、datacenter、room、row、pod、pdu、rack、chassis 和 host`,也可以自定义CRUSH类型
+
+###### CRUSH Structure
+CRUSH map由两部分组成:
+1. 描述集群物理拓扑的层级结构,该层级结构的叶子节点是设备（OSD），内部节点对应于其他物理特征或分组：主机、机架、行、数据中心等。
+2. 定义数据放置策略的一组规则。规则决定了副本如何根据该层级结构进行放置。
+
+**设备**: 是存储数据的单个 OSD（通常每个存储驱动器一个设备）。设备由 id（非负整数）和 name（通常为 osd.N）标识。在 Luminous 及更高版本中，可以为 OSD 分配设备类（device class，例如 hdd、ssd 或 nvme），从而允许 CRUSH 规则定位它们。  
+
+**类型和Buckets(桶)**: 在 CRUSH 的语境下，“Buckets”是指层级结构中任何内部节点的术语：主机、机架、行等。CRUSH  map定义了一系列用于标识这些节点的“类型”。默认类型包括：
+```
+osd, host, chassis, rack, row, pdu, pod, room, datacenter, zone, region, root
+```
+大多数集群仅使用这些类型中的少数几种。层级结构构建时，叶子节点是设备（通常类型为 osd），内部节点是非设备类型。根节点的类型为 root。
+
+层级结构中的每个节点（设备或桶）都有一个“权重” (weight)，表示该设备或层级子树应存储的数据占总数据的相对比例。权重在叶子节点设置，表示设备的大小。这些权重会自动沿“树向上”的方向求和。权重通常以 tebibytes (TiB) 为单位测量。
+
+**规则**: CRUSH 规则定义了控制数据如何在层级结构中的设备间分布的策略。这些规则允许你精确指定 CRUSH 放置数据副本的方式。可以通过命令行创建 CRUSH 规则，方法是指定它们将管理的池类型（副本或纠删码）、故障域，以及可选的设备类。
+
+**设备类**: 每个设备都可以可选地分配一个类 (class)。默认情况下，OSD 在启动时会根据其背后的设备类型自动将自己的类设置为 hdd、ssd 或 nvme。
+
+**权重集**:权重集是计算数据放置时使用的一组替代权重。权重集允许集群根据具体情况执行数值优化，以实现平衡的分布。
+
+Ceph 支持两种类型的权重集：
+1. compat 权重集：为集群中每个设备和节点提供的一组单一替代权重，与以前版本的 Ceph 向后兼容。
+2. per-pool 权重集：更加灵活，允许为每个数据池优化放置。
+
+如果同时使用了 compat 和 per-pool 权重集，特定池将优先使用其自己的 per-pool 权重集。
+
+> [crush-map](https://docs.ceph.com/en/latest/rados/operations/crush-map/)
 
 ### 客户端
 RADOS本身只支持对象存储，且不直接向最终用户暴露高层接口，而是通过客户端来实现统一存储：
@@ -129,7 +186,7 @@ RADOS本身只支持对象存储，且不直接向最终用户暴露高层接口
 - `CephFS`: 提供**文件存储**接口,提供**POSIX接口**,支持**FUSE**,使用它必须启动**MDS服务进程**,Ceph和集群的交互分为两条路径:
 	- 文件数据路径: 直接基于librados与OSD通信(读写文件内容)
 	- 文件元数据路径: 通过专用协议与MDS守护进程通信(处理目录，权限，inode等操作)
-##### RGW
+#### RGW
 Rados Object Gateway, daemon名称:`ceph-radosgw`
 主要职责:
 - 提供RESTful对象存储网关，让用户通过标准协议访问Ceph集群

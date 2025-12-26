@@ -2,7 +2,7 @@
   "cssTheme": "Sanctum",
   "interfaceFontFamily": "Serif",
   "theme": "moonstone",
-  "textFontFamily": "Serif",
+  "textFontFamily": "Noto Serif CJK SC",
   "monospaceFontFamily": "monospace",
   "accentColor": ""
 }

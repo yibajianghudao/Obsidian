@@ -1,17 +1,3 @@
----
-weight: 100
-title: TestLink
-slug: testlink
-description: 
-draft: false
-author: jianghudao
-tags:
-isCJKLanguage: true
-date: 2025-12-23T16:22:58+08:00
-lastmod: 2025-12-26T09:13:07+08:00
----
-
-测试链接:
 [模板文件](Linux/Systemd.md#模板文件)  
 [CentOS7](虚拟机/Docker.md#CentOS7)  
 [mon daemon错误](存储/ceph.md#mon%20daemon错误)  
@@ -30,17 +16,6 @@ lastmod: 2025-12-26T09:13:07+08:00
 [构建,清单](Link.md#构建,清单)  
 [元组](Link.md#元组)   
 [,.[]命令#-](Link.md#,.[]命令%20-)  
-[,.[]命令 -](Link.md#,.[]命令%20-)  
+[,.[]命令 -](Link.md#,.[]命令%20-)
 [安装  过程](Link.md#安装%20过程)  
 [LINUX(2024)](Link.md#LINUX(2024))  
-
-```
-[已被,转化](Link.md#已被,转化)
-```
-(Link.md#已被,转化)  
-
-[](Link.md#已被,转化) 
-
-[](#已被,转化)
-
-[](Link.md#)
