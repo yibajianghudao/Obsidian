@@ -52,7 +52,7 @@ process_file() {
     while IFS= read -r match; do
         # 使用 bash 正则精确解析（更安全可靠）
         # if [[ $match =~ "\[([^]]+)\]\((([^[:space:]]+\.md))#([^)]+)\)" ]]; then
-        if [[ $match =~ "\[[^\]]*\]\([^\.]*\.md#(?:[^()]|\([^()]*\)|\((?:[^()]+|\([^()]*\))*\))*[^()]*\)" ]]; then
+        if [[ $match =~ "\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^\.]*\.md#(?:[^()]|\([^()]*\)|\((?:[^()]+|\([^()]*\))*\))*[^()]*\)" ]]; then
             link_text="${BASH_REMATCH[1]}"   # 链接显示文字，如 "安装 过程"
             path="${BASH_REMATCH[3]}"         # 路径，如 "Link.md" 或 "虚拟机/Docker.md"
             old_frag="${BASH_REMATCH[4]}"     # 原始 fragment，如 "安装%20过程" 或 "CentOS7"

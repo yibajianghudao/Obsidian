@@ -8,35 +8,20 @@
         "type": "tabs",
         "children": [
           {
-            "id": "00eb42301963b68f",
+            "id": "3c0fb6a273fce9ad",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "存储/ceph.md",
+                "file": "其它/hugo/Hugo_Relearn.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "ceph"
-            }
-          },
-          {
-            "id": "939e9c3e298ee676",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "TestLink.md",
-                "mode": "source",
-                "source": true
-              },
-              "icon": "lucide-file",
-              "title": "TestLink"
+              "title": "Hugo_Relearn"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -109,13 +94,75 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "TestLink.md",
+                "file": "其它/hugo/Hugo_Relearn.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "TestLink 的大纲"
+              "title": "Hugo_Relearn 的大纲"
+            }
+          },
+          {
+            "id": "2f575ac0ff42b61a",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "TestLink.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "TestLink 的反向链接列表"
+            }
+          },
+          {
+            "id": "3049fec2da484ee1",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "TestLink.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "TestLink 的出链列表"
+            }
+          },
+          {
+            "id": "f6604f284380c5a6",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "e412b587334f6b61",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
             }
           }
         ]
@@ -137,17 +184,20 @@
       "obsidian42-brat:BRAT": false
     }
   },
-  "active": "939e9c3e298ee676",
+  "active": "3c0fb6a273fce9ad",
   "lastOpenFiles": [
+    "未命名.canvas",
     "Link.md",
     "TestLink.md",
     "存储/ceph.md",
+    "其它/hugo/Hugo_Relearn.md",
+    "Linux/SELinux.md",
+    "Linux/修改密码.md",
+    "Linux/驱动/ch341驱动.md",
     "存储/_index.md",
     "基础/设备/基础设备.md",
     "基础/设备/_index.md",
     "基础/_index.md",
-    "未命名.canvas",
-    "其它/hugo/Hugo_Relearn.md",
     "虚拟机/安装操作系统.md",
     "存储/ceph笔记.zip",
     "存储/ceph.tar.gz",
@@ -160,9 +210,7 @@
     "虚拟机/111.md",
     "虚拟机/assets/安装操作系统",
     "中间件/Grafana.md",
-    "Linux/修改密码.md",
     "Linux/UFW.md",
-    "Linux/SELinux.md",
     "虚拟机/_index.md",
     "中间件/Smokeping.md",
     "Linux/Linux.md",
@@ -170,10 +218,8 @@
     "中间件/Zabbix.md",
     "虚拟机/KVM.md",
     "中间件/assets/Smokeping/手动安装-20251218163216411.png",
-    "docs/Linux/安装操作系统.md",
     "docs/Linux",
     "docs",
-    "其它/系统笔记/AMDGPU.md",
     "其它/系统笔记",
     "虚拟机/assets/KVM/-20251208101657740.png",
     "虚拟机/assets/KVM",
