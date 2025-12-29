@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2025-12-26T15:24:07+08:00
+lastmod: 2025-12-29T16:57:53+08:00
 ---
 
 ## 概述
@@ -778,7 +778,9 @@ ceph的daemon由systemd管理，通过docker或podman在容器中运行，在添
     │   ├── unit.poststop
     │   └── unit.run
 ```
-在目录中存在以集群fsid命名的目录，内部是该集群在这台主机上运行的daemon的目录，目录中存储着daemon的数据，比如`unit.run`中存储的是daemon的启动命令，这些文件在ceph的**systemd模板单元**中被使用，例如:
+在目录中存在以集群fsid命名的目录，内部是该集群在这台主机上运行的daemon的目录，目录中存储着daemon的数据，比如`unit.run`中存储的是daemon的启动命令，这些文件在ceph的**Systemd模板单元**中被使用
+[模板单元](../Linux/Systemd.md#模板文件)
+例如:
 ```
 cat /etc/systemd/system/ceph-59f56c2c-dafa-11f0-a750-68a8282ec412@.service
 

@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "其它/hugo/Hugo_Relearn.md",
+                "file": "存储/ceph.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Hugo_Relearn"
+              "title": "ceph"
             }
           }
         ]
@@ -94,13 +94,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "其它/hugo/Hugo_Relearn.md",
+                "file": "存储/ceph.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Hugo_Relearn 的大纲"
+              "title": "ceph 的大纲"
             }
           },
           {
@@ -186,15 +186,17 @@
   },
   "active": "3c0fb6a273fce9ad",
   "lastOpenFiles": [
+    "存储/_index.md",
+    "Linux/Systemd.md",
+    "Linux/Linux.md",
+    "其它/hugo/Hugo_Relearn.md",
     "未命名.canvas",
     "Link.md",
     "TestLink.md",
     "存储/ceph.md",
-    "其它/hugo/Hugo_Relearn.md",
     "Linux/SELinux.md",
     "Linux/修改密码.md",
     "Linux/驱动/ch341驱动.md",
-    "存储/_index.md",
     "基础/设备/基础设备.md",
     "基础/设备/_index.md",
     "基础/_index.md",
@@ -204,7 +206,6 @@
     "存储/33sDdlH1Lhozjios.ceph.tar.gz",
     "网络/OAuth.md",
     "虚拟机/Docker.md",
-    "Linux/Systemd.md",
     "网络/远程登录.md",
     "虚拟机/assets/安装操作系统/network.png",
     "虚拟机/111.md",
@@ -213,7 +214,6 @@
     "Linux/UFW.md",
     "虚拟机/_index.md",
     "中间件/Smokeping.md",
-    "Linux/Linux.md",
     "_index.md",
     "中间件/Zabbix.md",
     "虚拟机/KVM.md",
