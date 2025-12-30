@@ -22,6 +22,16 @@ ConvertFragToHugo() {
     echo "$frag"
 }
 
+ConvertLink() {
+    local link=$1
+
+    if [[ $link == *"../"* ]]; then
+        link=$(echo "$link" | sed -E 's_../_../../_')
+    fi
+
+    echo "$link"
+}
+
 process_file() {
 	local file=$1;
 	echo "process file: $file."
@@ -32,18 +42,24 @@ process_file() {
 		return
 	fi
 
-    # 正则表达式是`\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]*\.md#(?:[^()]|\([^()]*\)|\((?:[^()]+|\([^()]*\))*\))*[^()]*\)`,下面的while因为分组所以进行了一些改变
+    # 处理匹配到`.md`但是没有匹配到任一插入文章链接的情况
+    local have=false
+
+    # 正则表达式是`\[(?:[^\[\]]|\[[^\[\]]*\])*\]\([^)]*\.md#?(?:[^()]|\([^()]*\)|\((?:[^()]+|\([^()]*\))*\))*[^()]*\)`,下面的while因为分组所以进行了一些改变
     perl -nE '
-    while (/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]\(([^)]*).md#((?:[^()]|\([^()]*\)|\((?:[^()]+|\([^()]*\))*\))*[^()]*)\)/g) {
+    while (/\[((?:[^\[\]]|\[[^\[\]]*\])*)\]\(([^)]*).md#?((?:[^()]|\([^()]*\)|\((?:[^()]+|\([^()]*\))*\))*[^()]*)\)/g) {
         print "$1\t$2\t$3\n";
     }
     ' "$file" |
     while IFS=$'\t' read -r text link old_frag; do
+
+        have=true
         new_frag=$(ConvertFragToHugo "$old_frag")
+        new_link=$(ConvertLink "$link")
         old_full="[$text]($link.md#$old_frag)"
 
-        if [[ $old_frag != $new_frag ]]; then 
-            new_full="[$text]($link.md#$new_frag)"
+        if [[ $old_frag != $new_frag || $link != $new_link ]]; then 
+            new_full="[$text]($new_link.md#$new_frag)"
 
             echo "--------------------"
             echo "found link: $old_full"
@@ -56,6 +72,11 @@ process_file() {
         fi
 
     done
+
+    if [[ !$have ]]; then
+        echo "this file have '.md' content, but don't have post link."
+        echo 
+    fi
 }
 
 if [[ $# -eq 0 ]]; then
