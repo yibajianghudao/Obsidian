@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2025-12-29T16:57:53+08:00
+lastmod: 2025-12-30T14:30:58+08:00
 ---
 
 ## 概述
@@ -203,6 +203,8 @@ Rados Object Gateway, daemon名称:`ceph-radosgw`
 | ceph1 | 192.168.1.2 | 1+12 | CentOS7 |
 | ceph2 | 192.168.1.3 | 1+12 | CentOS7 |
 | ceph3 | 192.168.1.4 | 1+12 | CentOS7 |
+
+> 我们会在ceph1机器上部署集群,然后添加另外两台机器到集群中,这种情况下,ceph1被称作"bootstrap host(引导主机)"
 
 ### 准备工作
 Ceph集群上的主机都需要满足以下要求：
@@ -408,7 +410,7 @@ $ which cephadm
 /usr/sbin/cephadm
 ```
 ### 创建集群
-创建集群及之后的添加主机，添加OSD等操作在**主服务器(ceph1)**上操作：  
+创建集群及之后的添加主机，添加OSD等操作在**引导服务器(ceph1)**上操作：  
 创建集群之前需要确保：
 1. 主机名不能太长，例如`localhost.localdomain`就太长
 2. 主机上存在本主机名的DNS解析
@@ -778,9 +780,7 @@ ceph的daemon由systemd管理，通过docker或podman在容器中运行，在添
     │   ├── unit.poststop
     │   └── unit.run
 ```
-在目录中存在以集群fsid命名的目录，内部是该集群在这台主机上运行的daemon的目录，目录中存储着daemon的数据，比如`unit.run`中存储的是daemon的启动命令，这些文件在ceph的**Systemd模板单元**中被使用
-[模板单元](../Linux/Systemd.md#模板文件)
-例如:
+在目录中存在以集群fsid命名的目录，内部是该集群在这台主机上运行的daemon的目录，目录中存储着daemon的数据，比如`unit.run`中存储的是daemon的启动命令，这些文件在ceph的[模板单元](../Linux/Systemd.md#模板单元)中被使用,例如:
 ```
 cat /etc/systemd/system/ceph-59f56c2c-dafa-11f0-a750-68a8282ec412@.service
 
@@ -860,6 +860,74 @@ chmod 600 /tmp/dashboard-admin-passwd
 ceph dashboard ac-user-set-password admin -i /tmp/dashboard-admin-passwd
 rm /tmp/dashboard-admin-passwd
 ```
+### CephFS
+#### CephFS volume
+创建CephFS volume:
+```
+[root@ceph1 ~]# ceph fs volume create newfs
+```
+创建之后会默认创建两个`pool`:
+```
+[root@ceph1 ~]# ceph osd lspools
+1 device_health_metrics
+2 cephfs.newfs.meta
+3 cephfs.newfs.data
+```
+集群状态也会显示mds的数量:
+```
+[root@ceph1 ~]# ceph -s
+  cluster:
+    id:     e34c50e0-dedc-11f0-9b15-68a8282ec412
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph1,ceph2,ceph3 (age 7d)
+    mgr: ceph1.djiyps(active, since 8d), standbys: ceph3.didzkk
+    mds: newfs:1 {0=newfs.ceph3.hvwaec=up:active} 1 up:standby
+    osd: 36 osds: 36 up (since 7d), 36 in (since 7d)
+ 
+  data:
+    pools:   3 pools, 65 pgs
+    objects: 22 objects, 2.2 KiB
+    usage:   37 GiB used, 156 TiB / 156 TiB avail
+    pgs:     65 active+clean
+ 
+```
+查看CephFS volume:
+```
+[root@ceph1 ~]# ceph fs volume ls
+[
+    {
+        "name": "newfs"
+    }
+]
+```
+删除CephFS volume:
+```
+[root@ceph1 ~]# ceph fs volume rm newfs --yes-i-really-mean-it
+Error EPERM: pool deletion is disabled; you must first set the mon_allow_pool_delete config option to true before volumes can be deleted
+```
+删除这个卷会删除它的两个pool,这里需要在`mon`上设置`mon_allow_pool_delete`[选项](https://docs.ceph.com/en/octopus/rados/configuration/mon-config-ref/#pool-settings):
+```
+# 现在的选项配置
+[root@ceph1 ~]# ceph config get mon mon_allow_pool_delete
+false
+
+# 设置为允许
+[root@ceph1 ~]# ceph config set mon mon_allow_pool_delete true
+
+# 删除volume
+[root@ceph1 ~]# ceph fs volume rm newfs --yes-i-really-mean-it
+metadata pool: cephfs.newfs.meta data pool: ['cephfs.newfs.data'] removed
+
+# 查看volume
+[root@ceph1 ~]# ceph fs volume ls
+[]
+```
+> 删除之后最好把`mon_allow_pool_delete`选项重新打开
+> ```
+> [root@ceph1 ~]# ceph config set mon mon_allow_pool_delete false
+> ```
 ## 排错
 ### mon daemon错误
 在执行`ceph -s`观察到demon有三个错误:

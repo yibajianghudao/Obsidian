@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-20T09:14:01+08:00  
-lastmod: 2025-12-15T09:21:59+08:00
+lastmod: 2025-12-30T11:35:37+08:00
 ---
 ubuntu22 默认的设置中14.2G的磁盘只分配了10G给逻辑卷  
 ```  

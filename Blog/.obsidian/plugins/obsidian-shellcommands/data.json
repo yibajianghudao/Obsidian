@@ -26,7 +26,7 @@
     {
       "id": "0po158ysxl",
       "platform_specific_commands": {
-        "default": "~/Code/Obsidian/Script/ConvertObsidianToHugo.sh ~/Code/Obsidian/Blog ~/Code/HugoBlog/content/Blog Template .obsidian"
+        "default": "~/Code/Obsidian/Script/ConvertObsidianToHugo.sh ~/Code/Obsidian/Blog ~/Code/HugoBlog/content Template .obsidian"
       },
       "shells": {},
       "alias": "ConvertObsidianToHugo",
@@ -62,7 +62,7 @@
     {
       "id": "xvwcp58cmg",
       "platform_specific_commands": {
-        "default": "~/Code/Obsidian/Script/ConvertFragment.sh ~/Code/HugoBlog/content/Blog/"
+        "default": "~/Code/Obsidian/Script/ConvertFragment.sh ~/Code/HugoBlog/content"
       },
       "shells": {},
       "alias": "Fragment Convert",
