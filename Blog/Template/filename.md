@@ -37,7 +37,7 @@ type: chapter
 weight: 50
 ---
 
-{{% children type="list" description=true %}}
+{{% children type="list" description=false %}}
 `;
 } else {
   // 非 _index 用的 front matter 和内容
@@ -45,7 +45,7 @@ weight: 50
 weight: 100
 title: "${finalTitle}"
 slug: "${slug}"
-description: ${tp.file.cursor()}
+summary: "${finalTitle}"
 draft: false
 author: jianghudao
 tags:

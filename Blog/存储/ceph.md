@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2025-12-30T14:30:58+08:00
+lastmod: 2026-01-08T17:40:25+08:00
 ---
 
 ## 概述
@@ -102,8 +102,8 @@ Metadata Server, daemon名称:`ceph-mds`
 ##### Pool
 存储池(Pool)是Ceph存储对象的逻辑分区.存储池提供以下关键功能:
 1. 弹性(Resilience):存储池可以设置在不丢失数据的情况下允许故障的OSD数量:
-	- 副本存储池(Replicated Pools):通过保存对象的多个副本实现,典型的配置是`size=3`(存在一个主对象加两个副本)
-	- 纠删码存储池(Erasure Coded Pools):通过将数据切分为`k`个数据块和`m`个编码块来实现,`,`的值决定了允许故障的OSD数量.
+	- **副本存储池**(Replicated Pools):通过保存对象的多个副本实现,典型的配置是`size=3`(存在一个主对象加两个副本)
+	- **纠删码存储池**(Erasure Coded Pools):通过将数据切分为`k`个数据块和`m`个编码块来实现,`,`的值决定了允许故障的OSD数量.
 2. 规制组(PG):可以为存储池设置PG数量,通常的配置是每个OSD大约负责100个PGs,以在不消耗过多计算资源的情况下实现负载均衡.
 3. CRUSH规则(CRUSH Rules):可以为特定的存储池创建自定义CRUSH规则.CRUSH规则决定了数据及其副本(或纠删码)在集群中的位置.
 4. 快照(snapshots):可以对特定的存储池创建快照,保留其在某一时刻的数据状态.
@@ -132,49 +132,108 @@ Ceph 客户端会计算对象应属于哪个归置组,具体方法是对对象 I
 
 > [placement-groups](https://docs.ceph.com/en/latest/rados/operations/placement-groups/)  
 > [New in Nautilus: PG merging and autotuning](https://ceph.io/en/news/blog/2019/new-in-nautilus-pg-merging-and-autotuning/)
-##### CRUSH
+### CRUSH
 CRUSH(Controlled Replication Under Scalable Hashing 受控复制的可扩展哈希算法)是一种基于哈希的数据分布算法。以数据唯一标识符，当前存储集群的拓扑结构以及数据备份策略作为CRUSH输入，可以随时随地通过计算获取数据所在的底层存储设备位置并直接与其通信，CRUSH 使得 Ceph 客户端能够直接与 OSD 通信，而不是通过一个中心化的服务器或代理。通过这种算法分布计算存储位置，Ceph 实现了去中心化、高度并发和高可扩展性，避免了单点故障、性能瓶颈以及扩展性的物理限制。  
 
-CRUSH使用(CRUSH Map)将数据映射到OSD并根据配置的复制策略和故障域在集群中分布数据.CRUSH Map包含一个OSD列表,一个"buckets(桶)"层级结构,以及管理CRUSH在集群池中复制数据的规则.
+CRUSH使用**CRUSH Map**将数据映射到OSD并根据配置的复制策略和故障域在集群中分布数据.CRUSH Map包含一个OSD列表,一个"buckets(桶)"层级结构,以及管理CRUSH在集群池中复制数据的规则.
 
 通过反映安装环境的底层物理组织，CRUSH 可以模拟并以此应对相关联设备同时故障的可能性。与 CRUSH 层级结构相关的因素包括机箱、机架、物理距离、共享电源、共享网络和故障域(failure domains)。通过将这些信息编码进 CRUSH map中，CRUSH 放置策略可以在保持所需分布的同时，将对象副本分布在不同的故障域中。例如，为了应对并发故障的可能性，可能需要确保数据副本位于处于不同机架、机架位、电源、控制器或物理位置的设备上。
 
 部署 OSD 时，它们会自动添加到 CRUSH map中的 host 桶下，该桶以运行该 OSD 的节点命名。这种行为结合配置的 CRUSH 故障域，可确保副本或纠删码分片分布在不同主机上，并且单个主机故障或其他类型的故障不会影响可用性。
 
-###### CRUSH Location
-OSD 在 CRUSH map层级结构中的位置被称为其 **CRUSH location**。CRUSH locayion的规范采用键值对列表的形式。例如，如果一个 OSD 位于特定的行（row）、机架（rack）、机箱（chassis）和主机（host）中，并且是“default” CRUSH 根节点的一部分，则其 CRUSH location可以指定如下：
+#### CRUSH Location
+OSD 在 CRUSH map层级结构中的位置被称为其 **CRUSH location**。CRUSH location的规范采用键值对列表的形式。例如，如果一个 OSD 位于特定的行（row）、机架（rack）、机箱（chassis）和主机（host）中，并且是“default” CRUSH 根节点的一部分，则其 CRUSH location可以指定如下：
 ```
 root=default row=a rack=a2 chassis=a2a host=a2a1
 ```
 1. 键的顺序无关紧要
 2. 键名必须是有效的CRUSH类型,默认情况下的CRUS类型有:`root、datacenter、room、row、pod、pdu、rack、chassis 和 host`,也可以自定义CRUSH类型
 
-###### CRUSH Structure
+#### CRUSH Structure
 CRUSH map由两部分组成:
 1. 描述集群物理拓扑的层级结构,该层级结构的叶子节点是设备（OSD），内部节点对应于其他物理特征或分组：主机、机架、行、数据中心等。
 2. 定义数据放置策略的一组规则。规则决定了副本如何根据该层级结构进行放置。
 
-**设备**: 是存储数据的单个 OSD（通常每个存储驱动器一个设备）。设备由 id（非负整数）和 name（通常为 osd.N）标识。在 Luminous 及更高版本中，可以为 OSD 分配设备类（device class，例如 hdd、ssd 或 nvme），从而允许 CRUSH 规则定位它们。  
+##### 设备
+设备是存储数据的单个 OSD（通常每个存储驱动器一个设备）。设备由 id（非负整数）和 name（通常为 osd.N）标识。在 Luminous 及更高版本中，可以为 OSD 分配设备类（device class，例如 hdd、ssd 或 nvme），从而允许 CRUSH 规则定位它们。  
 
-**类型和Buckets(桶)**: 在 CRUSH 的语境下，“Buckets”是指层级结构中任何内部节点的术语：主机、机架、行等。CRUSH  map定义了一系列用于标识这些节点的“类型”。默认类型包括：
+##### 桶(Bucket)
+在 CRUSH 的语境下，“Bucket”是指层级结构中任何内部节点的术语：主机、机架、行等。CRUSH  map定义了一系列用于标识这些节点的“类型”。默认类型包括：
 ```
 osd, host, chassis, rack, row, pdu, pod, room, datacenter, zone, region, root
 ```
 大多数集群仅使用这些类型中的少数几种。层级结构构建时，叶子节点是设备（通常类型为 osd），内部节点是非设备类型。根节点的类型为 root。
 
+##### 权重(weight)
 层级结构中的每个节点（设备或桶）都有一个“权重” (weight)，表示该设备或层级子树应存储的数据占总数据的相对比例。权重在叶子节点设置，表示设备的大小。这些权重会自动沿“树向上”的方向求和。权重通常以 tebibytes (TiB) 为单位测量。
 
-**规则**: CRUSH 规则定义了控制数据如何在层级结构中的设备间分布的策略。这些规则允许你精确指定 CRUSH 放置数据副本的方式。可以通过命令行创建 CRUSH 规则，方法是指定它们将管理的池类型（副本或纠删码）、故障域，以及可选的设备类。
-
-**设备类**: 每个设备都可以可选地分配一个类 (class)。默认情况下，OSD 在启动时会根据其背后的设备类型自动将自己的类设置为 hdd、ssd 或 nvme。
-
-**权重集**:权重集是计算数据放置时使用的一组替代权重。权重集允许集群根据具体情况执行数值优化，以实现平衡的分布。
+权重集是计算数据放置时使用的一组替代权重。权重集允许集群根据具体情况执行数值优化，以实现平衡的分布。
 
 Ceph 支持两种类型的权重集：
 1. compat 权重集：为集群中每个设备和节点提供的一组单一替代权重，与以前版本的 Ceph 向后兼容。
 2. per-pool 权重集：更加灵活，允许为每个数据池优化放置。
 
 如果同时使用了 compat 和 per-pool 权重集，特定池将优先使用其自己的 per-pool 权重集。
+#### CRUSH RULES
+CRUSH 规则定义了控制数据如何在层级结构中的设备间分布的策略。这些规则允许你精确指定 CRUSH 放置数据副本的方式。可以通过命令行创建 CRUSH 规则，方法是指定它们将管理的池类型（副本或纠删码）、故障域，以及可选的设备类。  
+
+查看集群定义了哪些规则:
+```
+$ ceph osd crush rule ls
+ceph osd crush rule lsreplicated_rule
+```
+
+查看规则内容:
+```
+$ ceph osd crush rule dump
+[
+    {
+        "rule_id": 0,
+        "rule_name": "replicated_rule",
+        "ruleset": 0,
+        "type": 1,
+        "min_size": 1,
+        "max_size": 10,
+        "steps": [
+            {
+                "op": "take",
+                "item": -1,
+                "item_name": "default"
+            },
+            {
+                "op": "chooseleaf_firstn",
+                "num": 0,
+                "type": "host"
+            },
+            {
+                "op": "emit"
+            }
+        ]
+    }
+]
+
+```
+
+添加一个规则:
+```
+$ ceph osd crush rule create-replicated <rule-name> <root> <failure-domain> <class>
+```
+例如:
+```
+ceph osd crush rule create-replicated hdd_rule default host hdd
+```
+命令添加一个名为`hdd_rule`,针对`replicated`存储pool,层次结构起始root为`default`,数据必须放置在不同主机(host)上的hdd磁盘上
+
+##### root
+CRUSH 层次结构的起始Root,一般是`default`
+##### 故障域
+放副本时**不允许重复的 bucket 层级**
+##### 设备类
+- failure-domain: ,
+- class: 设备类,每个设备都可以可选地分配一个类 (class)。默认情况下，OSD 在启动时会根据其背后的设备类型自动将自己的类设置为 hdd、ssd 或 nvme。
+
+
+
 
 > [crush-map](https://docs.ceph.com/en/latest/rados/operations/crush-map/)
 
@@ -928,6 +987,119 @@ metadata pool: cephfs.newfs.meta data pool: ['cephfs.newfs.data'] removed
 > ```
 > [root@ceph1 ~]# ceph config set mon mon_allow_pool_delete false
 > ```
+
+#### CephFS Subvolume
+### CRUSH Rule
+添加一个规则:
+```
+$ ceph osd crush rule create-replicated <rule-name> <root> <failure-domain> <class>
+```
+例如:
+```
+$ ceph osd crush rule create-replicated hdd_rule default host hdd
+```
+命令添加一个名为`hdd_rule`,针对`replicated`存储pool,层次结构起始root为`default`,数据必须放置在不同主机(host)上的hdd磁盘上  
+
+查看集群上的规则:
+```
+[root@ceph1 ~]# ceph osd crush rule ls
+replicated_rule
+hdd_rule
+ssd_rule
+```
+### Pool
+创建pool
+```
+ceph osd pool create rbd-hdd 512 512 replicated hdd_rule
+```
+该命令以hdd_rule规则创建了一个名为`rbd-hdd`的副本存储池,并设置pg和pgp为512.  
+
+如果集群开启了PG自动缩扩容(PG autoscaler),那么集群随机会自动的缩小PG的数量:
+```
+[root@ceph1 ~]# ceph -s
+  progress:
+    PG autoscaler decreasing pool 5 PGs from 256 to 32 (60s)
+      [............................] (remaining: 31m)
+    PG autoscaler decreasing pool 4 PGs from 512 to 32 (61s)
+      [............................] (remaining: 39m)
+```
+此时可以直接不指定pg数量创建pool:
+```
+ceph osd pool create rbd-hdd replicated hdd_rule
+```
+查看所有pool:
+```
+[root@ceph1 ~]# ceph osd lspools
+1 device_health_metrics
+4 rbd-hdd
+5 rbd-ssd
+```
+查看pool的详细信息,默认的参数不会显示在查看信息中:
+```
+[root@ceph1 ~]# ceph osd pool ls detail
+pool 1 'device_health_metrics' replicated size 3 min_size 2 crush_rule 0 object_hash rjenkins pg_num 1 pgp_num 1 autoscale_mode on last_change 28 flags hashpspool stripe_width 0 pg_num_min 1 application mgr_devicehealth
+pool 4 'rbd-hdd' replicated size 3 min_size 2 crush_rule 1 object_hash rjenkins pg_num 301 pgp_num 287 pg_num_target 32 pgp_num_target 32 pg_num_pending 300 autoscale_mode on last_change 1511 lfor 0/1511/1511 flags hashpspool stripe_width 0
+pool 5 'rbd-ssd' replicated size 3 min_size 2 crush_rule 2 object_hash rjenkins pg_num 101 pgp_num 98 pg_num_target 32 pgp_num_target 32 autoscale_mode on last_change 1511 lfor 0/1511/1509 flags hashpspool stripe_width 0
+
+[root@ceph1 ~]# ceph osd pool get rbd-hdd all
+size: 3
+min_size: 2
+pg_num: 186
+pgp_num: 183
+crush_rule: hdd_rule
+hashpspool: true
+nodelete: false
+nopgchange: false
+nosizechange: false
+write_fadvise_dontneed: false
+noscrub: false
+nodeep-scrub: false
+use_gmt_hitset: 1
+fast_read: 0
+pg_autoscale_mode: on
+```
+修改pool的`target_size_ratio`配置:
+```
+ceph osd pool set rbd-hdd target_size_ratio 0.7
+```
+新增加的配置能够看到:
+```
+[root@ceph1 ~]# ceph osd pool get rbd-hdd all
+...
+target_size_ratio: 0.7
+```
+ceph无法直接重置配置,可以手动修改配置到默认:
+```
+[root@ceph1 ~]# ceph osd pool set rbd-hdd target_size_ratio 0
+set pool 4 target_size_ratio to 0
+```
+如果不知道默认配置是什么,可以先创建一个新的pool,查看它的配置.
+
+删除pool:  
+默认情况下ceph不允许删除pool,如果直接删除会提示:
+```
+[root@ceph1 ~]# ceph fs volume rm newfs --yes-i-really-mean-it
+Error EPERM: pool deletion is disabled; you must first set the mon_allow_pool_delete config option to true before volumes can be deleted
+```
+先设置`mon_allow_pool_delete`为`true`,删除pool后再取消:
+```
+ceph config set mon mon_allow_pool_delete true
+```
+删除需要重复一次pool名,并且添加`--yes-i-really-really-mean-it`参数:
+```
+[root@ceph1 ~]# ceph osd pool rm rbd-ssd
+Error EPERM: WARNING: this will *PERMANENTLY DESTROY* all data stored in pool rbd-ssd.  If you are *ABSOLUTELY CERTAIN* that is what you want, pass the pool name *twice*, followed by --yes-i-really-really-mean-it.
+[root@ceph1 ~]# ceph osd pool rm rbd-ssd rbd-ssd --yes-i-really-really-mean-it
+pool 'rbd-ssd' removed
+```
+关闭`mon_allow_pool_delete`:
+```
+[root@ceph1 ~]# ceph config set mon mon_allow_pool_delete false
+```
+### Pool application
+pool application是上层服务对pool的假设,它只是一个声明,默认情况下不具有强约束(即不强制启动)它声明其将要用于什么服务,例如`rgw`,`cephfs`,`rdb`.  
+RBD对pool有强约束,要求必须启用`application=rbd`.
+查看
 ## 排错
 ### mon daemon错误
 在执行`ceph -s`观察到demon有三个错误:
@@ -1409,7 +1581,44 @@ ceph osd unset norebalance
 ceph osd unset nobackfill
 ceph osd unset noout
 ```
+### daemon not managed by cephadm
+查看`ceph -s`发现有告警:
+```
+[root@ceph1 ~]# ceph -s
+  cluster:
+    id:     e34c50e0-dedc-11f0-9b15-68a8282ec412
+    health: HEALTH_WARN
+            1 stray daemon(s) not managed by cephadm
+ 
+  services:
+    mon: 3 daemons, quorum ceph1,ceph2,ceph3 (age 2w)
+    mgr: ceph1.djiyps(active, since 2w), standbys: ceph3.didzkk
+    mds:  1 up:standby
+    osd: 36 osds: 36 up (since 2w), 36 in (since 2w)
+ 
+  data:
+    pools:   3 pools, 65 pgs
+    objects: 0 objects, 0 B
+    usage:   43 GiB used, 156 TiB / 156 TiB avail
+    pgs:     65 active+clean
+ 
+```
+使用`ceph health detail`发现是一个`mds`daemon没有被cephadm管理:
+```
+[root@ceph1 ~]# ceph health detail
 
+HEALTH_WARN 1 stray daemon(s) not managed by cephadm
+[WRN] CEPHADM_STRAY_DAEMON: 1 stray daemon(s) not managed by cephadm
+    stray daemon mds.newfs.ceph3.hvwaec on host ceph3 not managed by cephadm
+```
+查看`ceph orch ps | grep mds`确实没有这个mds:
+```
+[root@ceph1 ~]# ceph orch ps | grep mds
+```
+回想起来前些天测试Cephfs的创建,创建CephFS的一个卷之后就有了mds这个daemon,现在没有被管理,可能是删除CephFS卷之后它没有自动被删除,先去Ceph3机器查看一下:
+```
+
+```
 ## 参考
 - [Red Hat Ceph Storage 架构指南](https://docs.redhat.com/zh-cn/documentation/red_hat_ceph_storage/8/html/architecture_guide/index)
 - [Centos7.9离线部署ceph（octopus）](https://www.cnblogs.com/Pigs-Will-Fly/p/18671388#_label3_0)

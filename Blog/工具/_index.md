@@ -1,7 +1,7 @@
 ---
-title: 设备
+title: 工具
 type: chapter
-weight: 7
+weight: 9
 ---
 
 {{% children type="list" description=false %}}

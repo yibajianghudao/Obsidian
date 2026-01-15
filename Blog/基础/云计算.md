@@ -2,13 +2,13 @@
 weight: 100  
 title: 云计算  
 slug: 云计算  
-description:  
+summary: 
 draft: false  
 author: jianghudao  
 tags:  
 isCJKLanguage: true  
 date: 2025-11-22T09:46:55+08:00  
-lastmod: 2025-11-22T13:57:19+08:00  
+lastmod: 2026-01-15T14:17:56+08:00
 ---
 ## 基础设施的迭代  
 ### 单机场景  

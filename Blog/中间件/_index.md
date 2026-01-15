@@ -4,5 +4,5 @@ type: chapter
 weight: 6
 ---
 
-{{% children type="list" description=true %}}
+{{% children type="list" description=false %}}
 

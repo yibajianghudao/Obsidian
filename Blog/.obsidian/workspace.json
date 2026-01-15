@@ -4,21 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "80a5f6c296014423",
+        "id": "02703959eda2585a",
         "type": "tabs",
         "children": [
           {
-            "id": "91cc3ea122b0d6df",
+            "id": "245044fc2ccb0c71",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "其它/hugo/Hugo_Relearn.md",
+                "file": "存储/磁盘/磁盘空间清理.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Hugo_Relearn"
+              "title": "磁盘空间清理"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "",
+                "query": "description=true",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -94,13 +94,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "其它/hugo/Hugo_Relearn.md",
-                "followCursor": false,
+                "file": "存储/磁盘/磁盘空间清理.md",
+                "followCursor": true,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Hugo_Relearn 的大纲"
+              "title": "磁盘空间清理 的大纲"
             }
           },
           {
@@ -184,16 +184,37 @@
       "obsidian42-brat:BRAT": false
     }
   },
-  "active": "91cc3ea122b0d6df",
+  "active": "245044fc2ccb0c71",
   "lastOpenFiles": [
-    "存储/ceph.md",
-    "Linux/Systemd.md",
-    "其它/hugo/Hugo_Lotusdocs.md",
-    "存储/磁盘/逻辑卷扩容.md",
+    "Template/filename.md",
+    "Linux/_index.md",
+    "Linux/驱动/_index.md",
+    "中间件/_index.md",
+    "其它/hugo/_index.md",
+    "_index.md",
+    "其它/_index.md",
+    "其它/系统笔记/_index.md",
+    "存储/磁盘/_index.md",
+    "存储/_index.md",
+    "工具/_index.md",
+    "虚拟机/_index.md",
+    "网络/_index.md",
+    "题目/_index.md",
+    "基础/_index.md",
+    "基础/设备/_index.md",
+    "基础/git.md",
+    "基础/云计算.md",
+    "基础/设备/硬件.md",
+    "基础/设备/基础设备.md",
     "存储/磁盘/磁盘空间清理.md",
-    "其它/hugo/Hugo_Relearn.md",
-    "Link.md",
-    "TestLink.md",
+    "虚拟机/安装操作系统.md",
+    "存储/ceph.md",
+    "test.md",
+    "工具/Sudo.md",
+    "工具/OpenVPN.md",
+    "工具",
+    "Linux/assets/Linux/IPVSDR.png",
+    "Linux/assets/Linux/top.png",
     "存储/磁盘/assets/逻辑卷扩容/-20251230112931281.png",
     "存储/磁盘/assets/逻辑卷扩容/-20251230112638895.png",
     "存储/磁盘/assets/逻辑卷扩容/-20251230112551391.png",
@@ -202,36 +223,15 @@
     "存储/磁盘/assets/逻辑卷扩容/-20251230091921530.png",
     "存储/磁盘/assets/逻辑卷扩容",
     "存储/磁盘/assets",
-    "虚拟机/Docker.md",
-    "存储/_index.md",
-    "Linux/Linux.md",
     "未命名.canvas",
-    "Linux/SELinux.md",
-    "Linux/修改密码.md",
-    "Linux/驱动/ch341驱动.md",
-    "基础/设备/基础设备.md",
-    "基础/设备/_index.md",
-    "基础/_index.md",
-    "虚拟机/安装操作系统.md",
     "存储/ceph笔记.zip",
     "存储/ceph.tar.gz",
     "存储/33sDdlH1Lhozjios.ceph.tar.gz",
-    "网络/OAuth.md",
-    "网络/远程登录.md",
     "虚拟机/assets/安装操作系统/network.png",
-    "虚拟机/111.md",
     "虚拟机/assets/安装操作系统",
-    "中间件/Grafana.md",
-    "Linux/UFW.md",
-    "虚拟机/_index.md",
-    "中间件/Smokeping.md",
-    "_index.md",
     "中间件/assets/Smokeping/手动安装-20251218163216411.png",
     "docs/Linux",
     "docs",
-    "其它/系统笔记",
-    "虚拟机/assets/KVM/-20251208101657740.png",
-    "虚拟机/assets/KVM",
-    "存储/assets/ceph/ceph.svg"
+    "其它/系统笔记"
   ]
 }

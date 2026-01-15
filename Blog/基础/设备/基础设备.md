@@ -1,14 +1,14 @@
 ---
-weight: 100  
-title: 基础设备  
-slug: 基础设备  
-description:  
-draft: false  
-author: jianghudao  
-tags:  
+weight: 100
+title: 基础设备
+slug: 基础设备
+summary: 
+draft: false
+author: jianghudao
+tags:
 isCJKLanguage: true  
 date: 2025-11-20T09:17:03+08:00  
-lastmod: 2025-11-20T09:37:41+08:00  
+lastmod: 2026-01-15T14:17:08+08:00
 ---
 ## 服务器  
 服务器指的是在网络环境中为客户机(client)提供各种服务的、特殊的专用计算机。在网络中，服务器承担着数据的存储、转发、发布等关键任务  

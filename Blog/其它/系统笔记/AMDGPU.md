@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-12-16T15:20:24+08:00
-lastmod: 2025-12-16T15:20:24+08:00
+lastmod: 2026-01-07T09:57:53+08:00
 ---
 
 我的电脑最近在编辑文档的时候经常崩溃，最初我以为是`kate`编辑器的问题，然后换了`gedit`，甚至是`neovim`，都发生了崩溃，似乎经常发生在复制或粘贴的时候。  
@@ -22,4 +22,6 @@ lastmod: 2025-12-16T15:20:24+08:00
 - [](https://bbs.archlinux.org/viewtopic.php?id=302499)
 - [](https://community.frame.work/t/system-gets-really-slow/61854)
 
-打算先试一试`amdgpu.dcdebugmask=0x10`内核参数
+打算先试一试`amdgpu.dcdebugmask=0x10`内核参数  
+
+经过了二十天左右的测试,这种情况没有再发生,该参数是有效的,并且之前经常发生的屏幕撕裂也没有了.  

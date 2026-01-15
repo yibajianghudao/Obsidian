@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-11-20T09:13:31+08:00
-lastmod: 2025-12-15T10:14:29+08:00
+lastmod: 2026-01-15T11:55:52+08:00
 ---
 
 首先使用`df -h`或`df -i`查看是磁盘空间不足还是inode使用率过高
@@ -397,51 +397,113 @@ root@ubuntu2204:~# ls -l /var/log/nginx/access.log
 
 
 #### 子目录被挂载到其他文件系统
+##### 原理
 当我们将一个新的磁盘或分区挂载到一个已存在文件的目录上时，新挂载的文件系统会覆盖原目录下的所有文件 。此时，du命令只能统计新挂载文件系统中的文件大小，而df命令会统计整个挂载点所在分区的空间使用情况，包括那些被隐藏的原文件所占用的空间 。  
-例如在`/data`目录下有一个`2G`大小的文件:  
+##### 实验复现
+我们现在有两个磁盘:
 ```
-$ ls -lh 111.txt 
--rw-r--r-- 1 root root 2.0G Dec 11 08:18 111.txt
-```
-此时的`df`和`du`输出相同:  
-```
-$ df -h
-Filesystem      Size  Used Avail Use% Mounted on
-tmpfs           392M  1.1M  391M   1% /run
-/dev/sda2        16G  7.0G  8.0G  47% /
-tmpfs           2.0G     0  2.0G   0% /dev/shm
-tmpfs           5.0M     0  5.0M   0% /run/lock
-tmpfs           392M  4.0K  392M   1% /run/user/1000
+root@ubuntu2204:/mnt# lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
 
-$ du -xhd0 /
-7.0G    /
+sdb      8:16   0    2G  0 disk 
+sdc      8:32   0   10G  0 disk 
 ```
-然后我们把`/dev/sdb1`挂载到`/data`目录上，`/dev/sdb1`是一个空的文件系统:
+给他们创建文件系统:
 ```
-$ df -h
-Filesystem      Size  Used Avail Use% Mounted on
-tmpfs           392M  1.1M  391M   1% /run
-/dev/sda2        16G  7.0G  8.0G  47% /
-tmpfs           2.0G     0  2.0G   0% /dev/shm
-tmpfs           5.0M     0  5.0M   0% /run/lock
-tmpfs           392M  4.0K  392M   1% /run/user/1000
-/dev/sdb1       452M   24K  417M   1% /data
+mkfs.ext4 /dev/sdb
+mke2fs 1.46.5 (30-Dec-2021)
+Found a gpt partition table in /dev/sdb
+Proceed anyway? (y,N) y
+Creating filesystem with 524288 4k blocks and 131072 inodes
+Filesystem UUID: b3a97c74-b2ab-4bc1-a3d0-cd893a2957ca
+Superblock backups stored on blocks: 
+        32768, 98304, 163840, 229376, 294912
 
-$ du -xhd0 /
-5.0G    /
+Allocating group tables: done                            
+Writing inode tables: done                            
+Creating journal (16384 blocks): done
+Writing superblocks and filesystem accounting information: done 
+
+mkfs.ext4 /dev/sdc
+mke2fs 1.46.5 (30-Dec-2021)
+Found a gpt partition table in /dev/sdc
+Proceed anyway? (y,N) y
+Creating filesystem with 2621440 4k blocks and 655360 inodes
+Filesystem UUID: fbdef34d-2b75-40d1-8efc-85ff1a0209b5
+Superblock backups stored on blocks: 
+        32768, 98304, 163840, 229376, 294912, 819200, 884736, 1605632
+
+Allocating group tables: done                            
+Writing inode tables: done                            
+Creating journal (16384 blocks): done
+Writing superblocks and filesystem accounting information: done 
 ```
-可以看到`du`的输出比`df`少了2G。  
+先挂载`/dev/sdc`然后创建一个大文件:
+```
+root@ubuntu2204:/# mount /dev/sdc /test/
+root@ubuntu2204:/test# mkdir /test/mount
+root@ubuntu2204:/test/mount# dd if=/dev/zero of=/test/mount/access.log bs=1M count=5120
+```
+然后我们把`/dev/sdb`挂载到`/test/mount`目录上，`/dev/sdb`是一个空的文件系统:
+```
+root@ubuntu2204:/test# mount /dev/sdb /test/mount/
+
+root@ubuntu2204:/test# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           197M  1.1M  196M   1% /run
+/dev/sda2        16G  9.3G  5.7G  63% /
+tmpfs           982M     0  982M   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           197M  4.0K  197M   1% /run/user/1000
+/dev/sdc        9.8G  5.1G  4.3G  55% /test
+/dev/sdb        2.0G   24K  1.8G   1% /test/mount
+
+root@ubuntu2204:/test# du -xhd0 /test/
+20K     /test/
+```
+可以看到`du`的输出比`df`少了5.1G。  
 如果遇到这种情况，可以直接使用`mount`命令查看磁盘挂载情况，然后临时卸载掉磁盘：
 ```
-$ mount
-/dev/sdb1 on /data type ext4 (rw,relatime)
 
-$ umount /dev/sdb1 
-
-$ du -xhd0 /
-7.0G    /
 ```
 卸载后发现`du`输出恢复正常。
+##### 不能取消挂载时查看子目录是否有文件
+如果覆盖的文件系统不能被取消挂载,可以将原文件系统重新挂载到一个新的目录中,然后查看其中的内容,前提条件是该文件系统必须是一个分区,而不是磁盘.  
+现在磁盘状况如下:
+```
+root@ubuntu2204:/# lsblk
+sdb      8:16   0    2G  0 disk /test/mount
+sdc      8:32   0   10G  0 disk /test
+
+root@ubuntu2204:/# df -h
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           197M  1.1M  196M   1% /run
+/dev/sda2        16G  9.3G  5.7G  63% /
+tmpfs           982M     0  982M   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           197M  4.0K  197M   1% /run/user/1000
+/dev/sdc        9.8G  5.1G  4.3G  55% /test
+/dev/sdb        2.0G   24K  1.8G   1% /test/mount
+
+root@ubuntu2204:/# du -xhd0 /test/
+20K     /test/
+
+root@ubuntu2204:/# findmnt /test
+TARGET SOURCE   FSTYPE OPTIONS
+/test  /dev/sdc ext4   rw,relatime
+```
+> 注意我们的`/dev/sdc`是被`rw`挂载的,我们只能通过`rw`再次挂载,使用`/dev/sdc /mnt/test/`会报错:`mount: /mnt/test: /dev/sdc already mounted on /test.`
+
+
+将`/dev/sdc1`重新挂载到一个空目录查看发现其中确实包含内容:
+```
+root@ubuntu2204:/# mount /dev/sdc /mnt/test/
+
+root@ubuntu2204:/# du -xhd0 /mnt/test/
+5.1G    /mnt/test/
+```
+
+这样就能确定确实是目录被覆盖导致的
 #### 其他可能的情况
 - 错误的使用`du`命令：当使用`du -sh *`命令时，不会读取当前目录下的隐藏文件和隐藏目录，使用`du -sh ./`即可。  
 - ~~`du`重复计算硬链接占用(未复现)~~

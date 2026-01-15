@@ -2,13 +2,13 @@
 weight: 100
 title: git
 slug: git
-description: 
+summary: 
 draft: false
 author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-11-27T10:21:00+08:00
-lastmod: 2025-11-27T16:19:44+08:00
+lastmod: 2026-01-15T14:17:58+08:00
 ---
 ## upstream
 在使用git时遇到这样的场景：  
