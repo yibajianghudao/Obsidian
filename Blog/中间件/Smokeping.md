@@ -8,17 +8,23 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-20T09:35:03+08:00  
-lastmod: 2025-12-19T17:28:35+08:00
+lastmod: 2026-01-21T16:11:30+08:00
 ---
+
 ## 安装  
+
 ### ubuntu
-首先配置`apt`国内源,然后安装`smokeping`软件包  
-```  
+
+首先配置 `apt` 国内源,然后安装 `smokeping` 软件包  
+
+```bash  
 sudo apt install smokeping
 ```  
-postfix只作为smokeping的依赖安装,选择`local only`即可,邮件域名随意设置  
-smokeping会自带一个apache的配置文件:  
-```  
+
+postfix 只作为 smokeping 的依赖安装,选择 `local only` 即可,邮件域名随意设置  
+smokeping 会自带一个 apache 的配置文件:  
+
+```bash  
 newuser@ubuntu22:/$ cat /etc/apache2/conf-available/smokeping.conf  
 ScriptAlias /smokeping/smokeping.cgi /usr/lib/cgi-bin/smokeping.cgi  
 Alias /smokeping /usr/share/smokeping/www  
@@ -28,10 +34,13 @@ Alias /smokeping /usr/share/smokeping/www
     DirectoryIndex smokeping.cgi  
 </Directory>  
 ```  
-此时可以通过访问`http://ip:port/smokeping/smokeping.cgi`访问  
-然后在`/etc/apache2/mods-available/dir.conf`内添加`smokeping.cgi`,然后只需要访问`http://ip:port/smokeping`即可  
-#### 添加Basic认证  
-```  
+
+此时可以通过访问 `http://ip:port/smokeping/smokeping.cgi` 访问  
+然后在 `/etc/apache2/mods-available/dir.conf` 内添加 `smokeping.cgi`,然后只需要访问 `http://ip:port/smokeping` 即可  
+
+#### 添加 Basic 认证  
+
+```bash  
 root@cww:~# sudo apt install apache2-utils  
 root@cww:~# sudo htpasswd -c /etc/apache2/.htpasswd 123  
 New password:  
@@ -47,15 +56,21 @@ Alias /smokeping /usr/share/smokeping/www
     Require valid-user granted  
 </Directory>  
 ```  
+
 再次访问页面需要输入密码  
 ![](assets/Smokeping/添加Basic认证-20251025114603710.png)  
+
 ### CentOS
-如果是在CentOS系统上，需要配置`EPEL`仓库才能安装`smokeping`软件包，软件包会自动安装apache2(httpd软件包).  
-```
+
+如果是在 CentOS 系统上，需要配置 `EPEL` 仓库才能安装 `smokeping` 软件包，软件包会自动安装 apache2(httpd 软件包).  
+
+```bash
 yum install -y smokeping
 ```
-安装完成后，apache配置目录会存在一个配置文件`/etc/httpd/conf.d/smokeping.conf`:
-```
+
+安装完成后，apache 配置目录会存在一个配置文件 `/etc/httpd/conf.d/smokeping.conf`:
+
+```bash
 <Directory "/usr/share/smokeping" >
   Require local
   # Require ip 2.5.6.8
@@ -77,8 +92,9 @@ Alias       /smokeping/images  /var/lib/smokeping/images
 Alias       /smokeping         /usr/share/smokeping/htdocs
 ```
 
-其中`Require local`表明只允许本地访问，我们可以修改为基于Basic认证的方式：
-```
+其中 `Require local` 表明只允许本地访问，我们可以修改为基于 Basic 认证的方式：
+
+```bash
 <Directory "/usr/share/smokeping" >
   AuthType Basic
   AuthName "SmokePing Restricted"
@@ -93,65 +109,91 @@ Alias       /smokeping         /usr/share/smokeping/htdocs
   Require valid-user
 </Directory>
 ```
+
 然后生成一下密码文件：
-```
+
+```bash
 [root@localhost ~]# htpasswd -c /etc/httpd/conf/.htpasswd_smokeping username
 ```
+
 ### Docker
-这是一个使用CentOS7部署的手册
+
+这是一个使用 CentOS7 部署的手册
 
 添加防火墙规则
-```
+
+```bash
 firewall-cmd --permanent --add-port=8881/tcp
 ```
-配置镜像源,docker-ce源
-```
+
+配置镜像源,docker-ce 源
+
+```bash
 curl -o /etc/yum.repos.d/CentOS-Base.repo https://mirrors.aliyun.com/repo/Centos-7.repo  
 curl -o /etc/yum.repos.d/docker-ce.repo http://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 ```
+
 清理旧缓存,生成新缓存
-```
+
+```bash
 yum clean all
 yum makecache fast
 ```
-安装docker-ce 24.0.7版本
-```
+
+安装 docker-ce 24.0.7 版本
+
+```bash
 yum install -y docker-ce-24.0.7-1.el7 docker-ce-cli-24.0.7-1.el7 containerd.io
 ```
-启用docker
-```
+
+启用 docker
+
+```bash
 systemctl enable --now docker
 ```
-创建普通用户，添加到wheel,docker组
-```
+
+创建普通用户，添加到 wheel,docker 组
+
+```bash
 useradd -m newuser
 usermod -aG wheel newuser
 usermod -aG docker newuser
 ```
+
 切换到 newuser
-```
+
+```bash
 su - newuser
 ```
+
 设置密码
-```
+
+```bash
 passwd
 ```
-创建config和data目录
-```
+
+创建 config 和 data 目录
+
+```bash
 sudo mkdir -p /opt/smokeping/config
 sudo mkdir -p /opt/smokeping/data
 
 # 修改权限
 sudo chown -R newuser:newuser /opt/smokeping
 ```
-查看当前用户的uid,gid.
-```
+
+查看当前用户的 uid,gid.
+
+```bash
 $ id
 uid=1000(newuser) gid=1000(newuser) groups=1000(newuser),10(wheel),995(docker)
 ```
-#### 不需要Basic auth
-Smokeping有打包好的[镜像](https://hub.docker.com/r/linuxserver/smokeping)
-```
+
+#### 不需要 Basic auth
+
+Smokeping 有打包好的 [镜像](https://hub.docker.com/r/linuxserver/smokeping)
+
+```bash
 # 使用镜像站拉取
 docker pull m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
 
@@ -161,20 +203,27 @@ docker tag m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3 smokeping:2.7.3
 # 删除旧镜像
 docker rmi m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
 ```
+
 运行：
-```
+
+```bash
 docker run -d --name=smokeping -p 8881:80 -e PUID=1000 -e PGID=1000 -v /opt/smokeping/config:/config -v /opt/smokeping/data:/data --restart unless-stopped smokeping:2.7.3
 ```
+
 目录结构:
-```
+
+```bash
 /opt/smokeping/
 ├── config      # smokeping配置文件目录
 ├── data        # smokeping数据目录
 ```
-#### 需要Basic auth
-smokeping容器内自带一个apache服务器，但是在直接设置Basic auth无法使用，参考这个[issue](https://github.com/linuxserver/docker-smokeping/issues/85)，我们可以再使用一个Nginx容器(也可以是apache)在外部进行Basic auth认证。  
-拉取smokeping[镜像](https://hub.docker.com/r/linuxserver/smokeping)和Nginx镜像
-```
+
+#### 需要 Basic auth
+
+smokeping 容器内自带一个 apache 服务器，但是在直接设置 Basic auth 无法使用，参考这个 [issue](https://github.com/linuxserver/docker-smokeping/issues/85)，我们可以再使用一个 Nginx 容器 (也可以是 apache) 在外部进行 Basic auth 认证。  
+拉取 smokeping[镜像](https://hub.docker.com/r/linuxserver/smokeping) 和 Nginx 镜像
+
+```bash
 docker pull m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
 docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.27.0
 
@@ -186,14 +235,16 @@ docker rmi m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
 docker rmi swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.27.0
 ```
 
-安装htpasswd命令，创建密码文件
-```
+安装 htpasswd 命令，创建密码文件
+
+```bash
 sudo yum install -y httpd-tools
 htpasswd -c /opt/smokeping/htpasswd 123
 ```
 
-编辑`docker-compose.yaml`文件:
-```
+编辑 `docker-compose.yaml` 文件:
+
+```bash
 services:
   smokeping:
     image: smokeping:2.7.3
@@ -227,8 +278,10 @@ networks:
   proxy-net:
     driver: bridge
 ```
-编辑`nginx.conf`文件
-```
+
+编辑 `nginx.conf` 文件
+
+```bash
 server {
     listen 80;
 
@@ -246,13 +299,18 @@ server {
     }
 }
 ```
-使用`docker compose`命令运行容器
-```
+
+使用 `docker compose` 命令运行容器
+
+```bash
 docker compose up -d
 ```
-然后可以使用 http://ip:port/smokeping/ 访问网页    
+
+然后可以使用 http://ip:port/smokeping/ 访问网页
+
 目录结构:
-```
+
+```bash
 /opt/smokeping/
 ├── config      # smokeping配置文件目录
 ├── data        # smokeping数据目录
@@ -261,11 +319,12 @@ docker compose up -d
 └── nginx.conf  # nginx配置文件
 ```
 
-
 ## 配置  
-配置文件在`/etc/smokeping/conf.d/Targets`:  
+
+配置文件在 `/etc/smokeping/conf.d/Targets`:  
 配置文件格式如下:  
-```  
+
+```bash  
 *** Targets ***
 # 测试方法  
 probe = FPing  
@@ -297,31 +356,40 @@ menu = 辽宁沈阳电信
 title = 辽宁沈阳电信  
 host =  
 ```  
-`+`,`++`,`+++`表示层级,后面的是标识符  
-menu是在菜单中显示的名称,title是页面显示的标题  
-host是主机,可以指定ip地址,也可以指定标识符层级,例如`/Other/dianxin/qinghaihaidongdianxin`,多个主机用空格分隔,最终会显示到层页面上:  
+
+`+`,`++`,`+++` 表示层级,后面的是标识符  
+menu 是在菜单中显示的名称,title 是页面显示的标题  
+host 是主机,可以指定 ip 地址,也可以指定标识符层级,例如 `/Other/dianxin/qinghaihaidongdianxin`,多个主机用空格分隔,最终会显示到层页面上:  
 ![](assets/Smokeping/配置-20251025115757028.png)  
 页面最后还有一个总结图  
 ![](assets/Smokeping/配置-20251025115835469.png)  
+
 ## 问题  
+
 ### 图片无法显示中文  
-安装字体软件包:`apt install ttf-wqy-*`,主要是`ttf-wqy-zenhei`软件包  
+
+安装字体软件包:`apt install ttf-wqy-*`,主要是 `ttf-wqy-zenhei` 软件包  
 安装完字体包后发现部分图像依旧无法正常显示  
 ![](assets/Smokeping/图片无法显示中文-20251024102216754.png)  
 这是因为该条目收集的时间长,短时间内数据没有更新,因此还没有使用新安装的字体生成图像  
 检查一下配置中图像缓存地址:  
-```  
+
+```bash  
 $ grep imgcache /etc/smokeping/config.d/*  
 /etc/smokeping/config.d/pathnames:imgcache = /var/cache/smokeping/images  
 ```  
-cd到指定目录,发现是以一级标题的标识号分为不同的文件夹(配置文件中是`+ Other`)  
-```  
+
+cd 到指定目录,发现是以一级标题的标识号分为不同的文件夹 (配置文件中是 `+ Other`)  
+
+```bash  
 newuser@ubuntu22:/var/cache/smokeping/images$ ls  
 __chartscache  Local       Other        smokeping.png  TELCOM  WANGWANGDUI  
 CMCC           __navcache  rrdtool.png  tance          UNICOM  
 ```  
+
 找到想要更新的图像,删除即可  
-```  
+
+```bash  
 newuser@ubuntu22:/var/cache/smokeping/images$ cd Other/  
 newuser@ubuntu22:/var/cache/smokeping/images/Other$ ls  
 alibaba                    dianxin_last_31104000.png   liantong_mini.png  
@@ -336,15 +404,22 @@ dianxin_last_108000.png    liantong_last_864000.png    yidong_mini.png
 dianxin_last_10800.png     liantong.maxheight  
 newuser@ubuntu22:/var/cache/smokeping/images/Other$ sudo rm -r dianxin_last_31104000.png  
 ```  
+
 打开浏览器清除缓存或新建一个隐私窗口后发现图像已经更新:  
 ![](assets/Smokeping/图片无法显示中文-20251024102350282.png)  
+
 ## 其它  
-### Python脚本  
-这里有一个Python脚本  
+
+### Python 脚本  
+
+这里有一个 Python 脚本  
 {{< code file="assets/Smokeping/readTitleHostFromXLSX.py" language="python" >}}  
+
 ![](assets/Smokeping/image.png)  
-负责从上图格式的`.xslx`文件中提取其中(探测点,探测源IP)两列的数据,并将其生成为smokeping所用的Target的配置文件,格式类似于:  
-```  
+
+负责从上图格式的 `.xslx` 文件中提取其中 (探测点,探测源 IP) 两列的数据,并将其生成为 smokeping 所用的 Target 的配置文件,格式类似于:  
+
+```bash  
 ++ liaoning  
 menu = 辽宁  
 title = 辽宁  
@@ -362,8 +437,10 @@ menu = 山东
 title = 山东  
 host = 42.129.255.100  
 ```  
+
 也可以按照给定的标签分类,类似于:  
-```  
+
+```bash  
 + dianxin  
 menu = 电信  
 title = 电信  

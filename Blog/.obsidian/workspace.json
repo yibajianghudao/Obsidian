@@ -4,21 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "02703959eda2585a",
+        "id": "04d15644e631b2db",
         "type": "tabs",
         "children": [
           {
-            "id": "245044fc2ccb0c71",
+            "id": "fc63a4703da7f0d8",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "存储/磁盘/磁盘空间清理.md",
+                "file": "存储/ceph.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "磁盘空间清理"
+              "title": "ceph"
             }
           }
         ]
@@ -53,7 +53,7 @@
             "state": {
               "type": "search",
               "state": {
-                "query": "description=true",
+                "query": "",
                 "matchingCase": false,
                 "explainSearch": false,
                 "collapseAll": false,
@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 244.5
   },
   "right": {
     "id": "fcea3789067d1396",
@@ -94,13 +94,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "存储/磁盘/磁盘空间清理.md",
+                "file": "存储/ceph.md",
                 "followCursor": true,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "磁盘空间清理 的大纲"
+              "title": "ceph 的大纲"
             }
           },
           {
@@ -169,7 +169,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 200
+    "width": 271.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -181,57 +181,57 @@
       "bases:创建新数据库": false,
       "templater-obsidian:Templater": false,
       "obsidian-shellcommands:Shell commands: Custom variables": false,
-      "obsidian42-brat:BRAT": false
+      "copilot:Open Copilot Chat": false
     }
   },
-  "active": "245044fc2ccb0c71",
+  "active": "fc63a4703da7f0d8",
   "lastOpenFiles": [
-    "Template/filename.md",
-    "Linux/_index.md",
-    "Linux/驱动/_index.md",
-    "中间件/_index.md",
-    "其它/hugo/_index.md",
-    "_index.md",
-    "其它/_index.md",
-    "其它/系统笔记/_index.md",
-    "存储/磁盘/_index.md",
-    "存储/_index.md",
-    "工具/_index.md",
-    "虚拟机/_index.md",
-    "网络/_index.md",
-    "题目/_index.md",
-    "基础/_index.md",
-    "基础/设备/_index.md",
-    "基础/git.md",
-    "基础/云计算.md",
-    "基础/设备/硬件.md",
+    "copilot/copilot-custom-prompts/Clip Web Page.md",
+    "copilot/copilot-custom-prompts/Clip YouTube Transcript.md",
+    "copilot/copilot-custom-prompts/Rewrite as tweet thread.md",
+    "copilot/copilot-custom-prompts/Rewrite as tweet.md",
+    "copilot/copilot-custom-prompts/Remove URLs.md",
+    "copilot/copilot-custom-prompts/Generate glossary.md",
+    "copilot/copilot-custom-prompts/Generate table of contents.md",
+    "copilot/copilot-custom-prompts/Make longer.md",
+    "copilot/copilot-custom-prompts/Make shorter.md",
+    "copilot/copilot-custom-prompts/Emojify.md",
+    "copilot/copilot-custom-prompts/Explain like I am 5.md",
+    "copilot/copilot-custom-prompts/Simplify.md",
+    "copilot/copilot-custom-prompts/Summarize.md",
+    "copilot/copilot-custom-prompts/Translate to Chinese.md",
+    "copilot/copilot-custom-prompts/Fix grammar and spelling.md",
+    "copilot/copilot-custom-prompts",
+    "copilot",
+    "虚拟机/KVM.md",
+    "虚拟机/assets/KVM/使用 Cockpit Web 管理-20260121164821533.png",
+    "虚拟机/assets/KVM/使用 Cockpit Web 管理-20260121164648266.png",
+    "虚拟机/assets/KVM/使用 Cockpit Web 管理-20260121164357551.png",
+    "虚拟机/assets/KVM/使用 Cockpit Web 管理-20260121163852882.png",
+    "其它/通过Linux跳板机访问带外.md",
+    "中间件/Smokeping.md",
+    "虚拟机/Docker.md",
+    "虚拟机/网络配置.md",
+    "虚拟机/安装系统.md",
+    "虚拟机/assets/安装系统",
+    "虚拟机/assets/KVM/修改网络为桥接-20260121110119925.png",
+    "虚拟机/assets/KVM/使用 virsh+virt-install 管理-20260121105218295.png",
+    "虚拟机/assets/KVM/使用 virsh+virt-install 管理-20260121102406671.png",
+    "虚拟机/assets/KVM/使用 virt-manager 远程管理-20260120092041967.png",
+    "其它/IE.md",
+    "其它/assets/通过Linux跳板机访问带外/-20260119161832107.png",
+    "其它/assets/通过Linux跳板机访问带外",
+    "其它/assets",
+    "虚拟机/assets/KVM/使用 virt-manager 远程管理-20260119145955891.png",
     "基础/设备/基础设备.md",
-    "存储/磁盘/磁盘空间清理.md",
-    "虚拟机/安装操作系统.md",
-    "存储/ceph.md",
-    "test.md",
-    "工具/Sudo.md",
+    "基础/设备/_index.md",
     "工具/OpenVPN.md",
+    "工具/Sudo.md",
     "工具",
-    "Linux/assets/Linux/IPVSDR.png",
-    "Linux/assets/Linux/top.png",
-    "存储/磁盘/assets/逻辑卷扩容/-20251230112931281.png",
-    "存储/磁盘/assets/逻辑卷扩容/-20251230112638895.png",
-    "存储/磁盘/assets/逻辑卷扩容/-20251230112551391.png",
-    "存储/磁盘/assets/逻辑卷扩容/-20251230112509902.png",
-    "存储/磁盘/assets/逻辑卷扩容/微信图片_20251114083849_82_93.jpg",
-    "存储/磁盘/assets/逻辑卷扩容/-20251230091921530.png",
     "存储/磁盘/assets/逻辑卷扩容",
     "存储/磁盘/assets",
     "未命名.canvas",
     "存储/ceph笔记.zip",
-    "存储/ceph.tar.gz",
-    "存储/33sDdlH1Lhozjios.ceph.tar.gz",
-    "虚拟机/assets/安装操作系统/network.png",
-    "虚拟机/assets/安装操作系统",
-    "中间件/assets/Smokeping/手动安装-20251218163216411.png",
-    "docs/Linux",
-    "docs",
-    "其它/系统笔记"
+    "存储/ceph.tar.gz"
   ]
 }

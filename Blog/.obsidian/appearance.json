@@ -1,8 +1,11 @@
 {
-  "cssTheme": "Sanctum",
+  "cssTheme": "Minimal",
   "interfaceFontFamily": "Serif",
   "theme": "moonstone",
   "textFontFamily": "Noto Serif CJK SC",
   "monospaceFontFamily": "monospace",
-  "accentColor": ""
+  "accentColor": "",
+  "baseFontSizeAction": true,
+  "nativeMenus": false,
+  "baseFontSize": 17
 }
