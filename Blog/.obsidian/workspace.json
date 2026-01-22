@@ -78,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 244.5
+    "width": 200
   },
   "right": {
     "id": "fcea3789067d1396",
@@ -165,11 +165,12 @@
               "title": "添加笔记属性"
             }
           }
-        ]
+        ],
+        "currentTab": 4
       }
     ],
     "direction": "horizontal",
-    "width": 271.5
+    "width": 208.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -184,8 +185,10 @@
       "copilot:Open Copilot Chat": false
     }
   },
-  "active": "fc63a4703da7f0d8",
+  "active": "e412b587334f6b61",
   "lastOpenFiles": [
+    "copilot/copilot-conversations/检查错误,完善格式@20260122_104444.md",
+    "copilot/copilot-conversations",
     "copilot/copilot-custom-prompts/Clip Web Page.md",
     "copilot/copilot-custom-prompts/Clip YouTube Transcript.md",
     "copilot/copilot-custom-prompts/Rewrite as tweet thread.md",
@@ -226,12 +229,10 @@
     "基础/设备/基础设备.md",
     "基础/设备/_index.md",
     "工具/OpenVPN.md",
-    "工具/Sudo.md",
     "工具",
     "存储/磁盘/assets/逻辑卷扩容",
     "存储/磁盘/assets",
     "未命名.canvas",
-    "存储/ceph笔记.zip",
-    "存储/ceph.tar.gz"
+    "存储/ceph笔记.zip"
   ]
 }
