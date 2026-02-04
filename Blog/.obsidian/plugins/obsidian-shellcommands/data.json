@@ -98,10 +98,10 @@
     {
       "id": "zcjsch9rrr",
       "platform_specific_commands": {
-        "default": "ENV_ENABLE_GIT=\"{{_git}}\" ENV_COMMIT_MSG=\"{{_commit_msg}}\" ENV_ENABLE_PUSH=\"{{_push}}\" ~/Code/Obsidian/Script/DeployObsidianToHugo.sh ~/Code/Obsidian/Blog ~/Code/HugoBlog/content Template .obsidian"
+        "default": "ENV_ENABLE_GIT={{_git}} ENV_COMMIT_MSG={{_commit_msg}} ENV_ENABLE_PUSH={{_push}} ~/Code/Obsidian/Script/DeployObsidianToHugo.sh ~/Code/Obsidian/Blog ~/Code/HugoBlog/content Template .obsidian"
       },
       "shells": {},
-      "alias": "Deploy",
+      "alias": "DeployObsidianToHugo",
       "icon": null,
       "confirm_execution": true,
       "ignore_error_codes": [],
