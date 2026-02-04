@@ -1,9 +1,0 @@
-被引用文章标题			Obsidian引用					Hugo转换后url标题
-
-,.[]命令#-			,.[]命令%20-					命令-
-WS WPS ''""			WS%20WPS%20''""				ws-wps-
-LINUX-LINUX			LINUX-LINUX					linux-linux
-UbunTTU -- 24141	UbunTTU%20--%2024141		ubunttu--24141
-CentoU --- 24141 	CentoU%20---%2024141		centou--24141
-ARCH---24141		ARCH---24141				arch24141
-ROCKy ----- 24141 	ROCKy%20-----%2024141		rocky--24141
