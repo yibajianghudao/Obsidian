@@ -140,68 +140,6 @@
   ],
   "prompts": [
     {
-      "id": "kqezp7et27",
-      "title": "did you want run git?",
-      "description": "",
-      "preview_shell_command": false,
-      "fields": [
-        {
-          "type": "single-line-text",
-          "label": "git commit message",
-          "description": "",
-          "default_value": "some update",
-          "target_variable_id": "wtmhzhlou4",
-          "required": false
-        },
-        {
-          "type": "single-line-text",
-          "label": "did you want run git push",
-          "description": "",
-          "default_value": "n",
-          "target_variable_id": "1z6hhq5516",
-          "required": true
-        }
-      ],
-      "execute_button_text": "Execute"
-    },
-    {
-      "id": "5qljim4dno",
-      "title": "git command",
-      "description": "",
-      "preview_shell_command": false,
-      "fields": [
-        {
-          "type": "toggle",
-          "label": "run git command?",
-          "description": "",
-          "default_value": "yes",
-          "target_variable_id": "ocxd54c5g7",
-          "required": true,
-          "on_result": "yes",
-          "off_result": "no"
-        },
-        {
-          "type": "single-line-text",
-          "label": "git commit message",
-          "description": "",
-          "default_value": "some update",
-          "target_variable_id": "wtmhzhlou4",
-          "required": true
-        },
-        {
-          "type": "toggle",
-          "label": "push to remote?",
-          "description": "",
-          "default_value": "yes",
-          "target_variable_id": "50t9tl2zqq",
-          "required": true,
-          "on_result": "yes",
-          "off_result": "no"
-        }
-      ],
-      "execute_button_text": "Start Execute"
-    },
-    {
       "id": "zkmnqh8ciw",
       "title": "Run Git Command",
       "description": "",
@@ -248,12 +186,6 @@
     {
       "id": "wtmhzhlou4",
       "name": "commit_msg",
-      "description": "",
-      "default_value": null
-    },
-    {
-      "id": "1z6hhq5516",
-      "name": "git_push",
       "description": "",
       "default_value": null
     },
