@@ -11,6 +11,10 @@ set -euo pipefail
 # 2: 显示详细调试信息 (Debug) - 包括具体的文件移动和处理细节
 LOG_LEVEL=1
 
+# Git 仓库路径
+GIT_REPO_HUGO="$HOME/Code/HugoBlog"
+GIT_REPO_OBSIDIAN="$HOME/Code/Obsidian"
+
 # ==========================================
 # 工具函数
 # ==========================================
@@ -42,7 +46,7 @@ shift 2
 # 阶段一：同步与结构重组 (原 ConvertObsidianToHugo)
 # ==========================================
 
-log_info "Step 1/3: Syncing files from Obsidian to Hugo..."
+log_info "Step 1/4: Syncing files from Obsidian to Hugo..."
 log_debug "Source: $SRC"
 log_debug "Destination: $DEST"
 
@@ -62,7 +66,7 @@ fi
 
 rsync $RSYNC_OPTS $EXCLUDE_PARAMS "$SRC/" "$DEST/" || { log_error "rsync failed"; exit 1; }
 
-log_info "Step 2/3: Converting folder structure to Hugo Page Bundles..."
+log_info "Step 2/4: Converting folder structure to Hugo Page Bundles..."
 
 cd "$DEST" || { log_error "Failed to enter directory $DEST"; exit 1; }
 shopt -s nullglob
@@ -101,7 +105,7 @@ log_debug "Cleaned up empty assets directories."
 # 阶段二：处理 Fragment 锚点 (原 ConvertFragment)
 # ==========================================
 
-log_info "Step 3/3: Fixing Fragment Links and Anchors..."
+log_info "Step 3/4: Fixing Fragment Links and Anchors..."
 
 # 内部函数：转换 Fragment 字符串
 ConvertFragToHugo() {
@@ -180,7 +184,74 @@ find "$DEST" -type f -name "index.md" -print0 | while IFS= read -r -d '' f; do
 done
 
 # ==========================================
+# 阶段三：Git 部署 (逻辑已更新)
+# ==========================================
+
+log_info "Step 4/4: Preparing for Git deployment..."
+
+# 恢复标准输入（防止之前的管道影响 read 命令）
+exec < /dev/tty
+
+echo ""
+echo "------------------------------------------------"
+# 修改了提示语：明确这里只是开始 add/commit
+read -p "Do you want to start Git processing (add & commit) for both repos? [y/N] " confirm
+echo ""
+
+if [[ "$confirm" =~ ^[Yy]$ ]]; then
+    
+    # 获取 Commit 信息
+    read -p "Enter commit message (Press Enter for default: 'some update'): " input_msg
+    commit_msg="${input_msg:-some update}"
+    echo "Using commit message: '$commit_msg'"
+    echo "------------------------------------------------"
+
+    # 定义要处理的仓库数组
+    repos=("$GIT_REPO_OBSIDIAN" "$GIT_REPO_HUGO")
+
+    for repo in "${repos[@]}"; do
+        if [ -d "$repo" ]; then
+            repo_name=$(basename "$repo")
+            log_info "Processing repository: $repo_name"
+            
+            # 进入目录
+            cd "$repo" || { log_error "Cannot enter $repo"; continue; }
+
+            # 检查是否有变动
+            if [[ -z $(git status --porcelain) ]]; then
+                log_info "No changes detected in $repo_name. Skipping."
+            else
+                # 1. 总是执行 add 和 commit
+                git add .
+                git commit -m "$commit_msg"
+                log_success "Changes committed locally for $repo_name."
+
+                # 2. 二次确认：是否 Push
+                # 使用 /dev/tty 确保在循环中也能读取输入
+                echo -n "   > Ready to PUSH $repo_name to origin main? [y/N] "
+                read confirm_push < /dev/tty
+
+                if [[ "$confirm_push" =~ ^[Yy]$ ]]; then
+                    log_info "Pushing to origin main..."
+                    git push origin main || log_error "Push failed for $repo_name"
+                    log_success "Deployment (Push) completed for $repo_name."
+                else
+                    # 按照要求：不通过则结束（只保留了 add/commit 的状态）
+                    log_info "Push skipped. (Changes remain committed locally)"
+                fi
+            fi
+            echo "------------------------------------------------"
+        else
+            log_error "Repository path not found: $repo"
+        fi
+    done
+
+else
+    log_info "Git deployment skipped by user."
+fi
+
+# ==========================================
 # 结束
 # ==========================================
 echo ""
-log_success "All tasks completed successfully! Blog is ready for Hugo."
+log_success "All scripts finished."
