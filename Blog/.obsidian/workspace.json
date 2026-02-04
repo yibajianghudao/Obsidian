@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "中间件/Zabbix.md",
+                "file": "工具/Sudo.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Zabbix"
+              "title": "Sudo"
             }
           },
           {
@@ -108,13 +108,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Linux/SELinux.md",
-                "followCursor": true,
-                "showSearch": false,
+                "file": "工具/Sudo.md",
+                "followCursor": false,
+                "showSearch": true,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "SELinux 的大纲"
+              "title": "Sudo 的大纲"
             }
           },
           {
@@ -178,13 +178,32 @@
               "icon": "lucide-archive",
               "title": "添加笔记属性"
             }
+          },
+          {
+            "id": "d6835b4498d1d94c",
+            "type": "leaf",
+            "state": {
+              "type": "SC-custom-variables-view",
+              "state": {},
+              "icon": "code-glyph",
+              "title": "Shell commands: Custom variables"
+            }
+          },
+          {
+            "id": "4d0e68bb731cc991",
+            "type": "leaf",
+            "state": {
+              "type": "SC-custom-variables-view",
+              "state": {},
+              "icon": "code-glyph",
+              "title": "Shell commands: Custom variables"
+            }
           }
         ]
       }
     ],
     "direction": "horizontal",
-    "width": 208.5,
-    "collapsed": true
+    "width": 208.5
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -198,12 +217,17 @@
       "obsidian-shellcommands:Shell commands: Custom variables": false
     }
   },
-  "active": "d63c11054b162c1a",
+  "active": "a4243396a57cc4f7",
   "lastOpenFiles": [
-    "中间件/Smokeping.md",
-    "虚拟机/KVM.md",
+    "工具/OpenVPN.md",
+    "工具/Sudo.md",
+    "工具/_index.md",
+    "存储/ceph.md",
     "虚拟机/Docker.md",
     "虚拟机/网络配置.md",
+    "中间件/Zabbix.md",
+    "中间件/Smokeping.md",
+    "虚拟机/KVM.md",
     "虚拟机/安装系统.md",
     "网络/OAuth.md",
     "网络/远程登录.md",
@@ -219,14 +243,9 @@
     "Linux/Systemd.md",
     "Linux/UFW.md",
     "Linux/防火墙.md",
-    "存储/ceph.md",
     "copilot/copilot-conversations/检查错误,完善格式@20260122_104444.md",
     "copilot/copilot-conversations",
     "copilot/copilot-custom-prompts/Clip Web Page.md",
-    "copilot/copilot-custom-prompts/Clip YouTube Transcript.md",
-    "copilot/copilot-custom-prompts/Rewrite as tweet thread.md",
-    "copilot/copilot-custom-prompts/Rewrite as tweet.md",
-    "copilot/copilot-custom-prompts/Remove URLs.md",
     "copilot/copilot-custom-prompts",
     "copilot",
     "虚拟机/assets/KVM/使用 Cockpit Web 管理-20260121164821533.png",

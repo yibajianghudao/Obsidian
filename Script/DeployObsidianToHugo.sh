@@ -9,7 +9,7 @@ set -euo pipefail
 # 0: 仅显示错误 (Error) 和 最终成功提示
 # 1: 显示关键步骤 (Info) - 推荐
 # 2: 显示详细调试信息 (Debug) - 包括具体的文件移动和处理细节
-LOG_LEVEL=1
+LOG_LEVEL=2
 
 # Git 仓库路径
 GIT_REPO_HUGO="$HOME/Code/HugoBlog"
@@ -184,60 +184,58 @@ find "$DEST" -type f -name "index.md" -print0 | while IFS= read -r -d '' f; do
 done
 
 # ==========================================
-# 阶段三：Git 部署 (逻辑已更新)
+# 阶段四：Git 部署 (完全基于环境变量)
 # ==========================================
 
-log_info "Step 4/4: Preparing for Git deployment..."
+# 1. 接收环境变量 (对应 Obsidian 传入的值)
+# 使用 :- 设置默认值，防止变量未定义报错
+CONF_ENABLE_GIT="${ENV_ENABLE_GIT:-false}"   # 对应 {{_git}}
+CONF_COMMIT_MSG="${ENV_COMMIT_MSG:-Auto update}" # 对应 {{_commit_msg}}
+CONF_ENABLE_PUSH="${ENV_ENABLE_PUSH:-false}" # 对应 {{_push}}
 
-# 恢复标准输入（防止之前的管道影响 read 命令）
-exec < /dev/tty
+log_info "Step 4/4: Checking Git deployment configuration..."
 
-echo ""
-echo "------------------------------------------------"
-# 修改了提示语：明确这里只是开始 add/commit
-read -p "Do you want to start Git processing (add & commit) for both repos? [y/N] " confirm
-echo ""
-
-if [[ "$confirm" =~ ^[Yy]$ ]]; then
+# 2. 判断是否启用 Git 流程
+# 使用正则匹配：支持输入 y, Y, yes, true, 1 等肯定词
+if [[ "$CONF_ENABLE_GIT" =~ ^[YyTt1] ]]; then
     
-    # 获取 Commit 信息
-    read -p "Enter commit message (Press Enter for default: 'some update'): " input_msg
-    commit_msg="${input_msg:-some update}"
-    echo "Using commit message: '$commit_msg'"
-    echo "------------------------------------------------"
+    log_info "Git processing STARTED."
+    log_info "Commit Message: '$CONF_COMMIT_MSG'"
+    
+    if [[ "$CONF_ENABLE_PUSH" =~ ^[YyTt1] ]]; then
+        log_info "Push Mode: ENABLED (Will push to origin)"
+    else
+        log_info "Push Mode: DISABLED (Will only commit locally)"
+    fi
 
-    # 定义要处理的仓库数组
+    # 定义仓库列表
     repos=("$GIT_REPO_OBSIDIAN" "$GIT_REPO_HUGO")
 
     for repo in "${repos[@]}"; do
         if [ -d "$repo" ]; then
             repo_name=$(basename "$repo")
-            log_info "Processing repository: $repo_name"
             
             # 进入目录
             cd "$repo" || { log_error "Cannot enter $repo"; continue; }
 
-            # 检查是否有变动
+            # 检查变动
             if [[ -z $(git status --porcelain) ]]; then
-                log_info "No changes detected in $repo_name. Skipping."
+                log_info "[$repo_name] No changes detected. Skipping."
             else
-                # 1. 总是执行 add 和 commit
+                log_info "[$repo_name] Changes detected..."
+                
+                # --- 执行 Git Add & Commit ---
                 git add .
-                git commit -m "$commit_msg"
-                log_success "Changes committed locally for $repo_name."
+                git commit -m "$CONF_COMMIT_MSG"
+                log_success "[$repo_name] Committed locally."
 
-                # 2. 二次确认：是否 Push
-                # 使用 /dev/tty 确保在循环中也能读取输入
-                echo -n "   > Ready to PUSH $repo_name to origin main? [y/N] "
-                read confirm_push < /dev/tty
-
-                if [[ "$confirm_push" =~ ^[Yy]$ ]]; then
-                    log_info "Pushing to origin main..."
-                    git push origin main || log_error "Push failed for $repo_name"
-                    log_success "Deployment (Push) completed for $repo_name."
+                # --- 根据配置决定是否 Push ---
+                if [[ "$CONF_ENABLE_PUSH" =~ ^[YyTt1] ]]; then
+                    log_info "[$repo_name] Pushing to origin main..."
+                    git push origin main || log_error "[$repo_name] Push failed!"
+                    log_success "[$repo_name] Deployed successfully."
                 else
-                    # 按照要求：不通过则结束（只保留了 add/commit 的状态）
-                    log_info "Push skipped. (Changes remain committed locally)"
+                    log_info "[$repo_name] Push skipped by config."
                 fi
             fi
             echo "------------------------------------------------"
@@ -247,7 +245,8 @@ if [[ "$confirm" =~ ^[Yy]$ ]]; then
     done
 
 else
-    log_info "Git deployment skipped by user."
+    echo ""
+    log_info "Git deployment skipped (ENABLE_GIT='$CONF_ENABLE_GIT')."
 fi
 
 # ==========================================
