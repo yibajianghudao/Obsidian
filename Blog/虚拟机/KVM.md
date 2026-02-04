@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-12-08T10:09:41+08:00
-lastmod: 2026-01-21T17:03:11+08:00
+lastmod: 2026-01-30T16:31:22+08:00
 ---
 
 KVM(Kernel-based Virtual Machine 基于内核的虚拟机)，它是内置于 Linux 内核的 `hypervisor`，属于 `Type 1 Hypervisor`。  
@@ -424,6 +424,197 @@ $ virsh net-dumpxml default
 </network>
 ```
 
+## 使用 Ceph RBD
+
+打算将一个 ceph 集群作为存储介质为 VM 提供磁盘
+
+首先在 Ceph 集群创建和初始化两个 pool,这里分为 hdd 和 ssd:
+
+```bash
+# 创建CRUSH规则
+ceph osd crush rule create-replicated hdd_rule default host hdd
+ceph osd crush rule create-replicated ssd_rule default host ssd
+# 创建Pool
+ceph osd pool create rbd-hdd replicated hdd_rule
+ceph osd pool create rbd-ssd replicated ssd_rule
+# 配置application
+ceph osd pool application enable rbd-hdd rbd
+ceph osd pool application enable rbd-ssd rbd
+# rbd初始化
+rbd pool init rbd-hdd
+rbd pool init rbd-ssd
+```
+
+安装软件包:
+
+```bash
+root@kvm:~# sudo apt install -y ceph-common libvirt-daemon-system libvirt-clients libvirt-daemon-driver-storage-rbd
+```
+
+编辑配置文件,主要是 mon 的 ip:
+
+```bash
+root@kvm:~# cat /etc/ceph/ceph.conf 
+[global]
+        fsid = e34c50e0-dedc-11f0-9b15-68a8282ec412
+        mon_host = [v2:42.51.26.2:3300/0,v1:42.51.26.2:6789/0]
+```
+
+复制一份 admin 的 keyring:
+
+```bash
+scp /etc/ceph/ceph.client.admin.keyring root@42.51.26.5:/etc/ceph/
+```
+
+创建一个镜像:
+
+```bash
+qemu-img create -f raw rbd:rbd-ssd/testkvm 10G
+Formatting 'rbd:rbd-ssd/testkvm', fmt=raw size=10737418240
+```
+
+确定镜像存在:
+
+```bash
+root@kvm:~# rbd -p rbd-ssd ls | grep -w testkvm
+testkvm
+root@kvm:~# qemu-img info rbd:rbd-ssd/testkvm
+image: json:{"driver": "raw", "file": {"pool": "rbd-ssd", "image": "testkvm", "driver": "rbd", "namespace": ""}}
+file format: raw
+virtual size: 10 GiB (10737418240 bytes)
+disk size: unavailable
+cluster_size: 4194304
+```
+
+### 注册为存储池
+
+可以把 Ceph 中的 Pool 注册为 KVM 中的存储池 (storage pool)
+
+storage pool 需要以下配置:
+
+- ceph mon 的地址
+- ceph 用户名
+- secret uuid
+Ceph 主机:
+首先在 Ceph 上创建一个 `libivrt` 用户,给予 `rbd-hdd` 和 `rbd-ssd` 两个 pool 的权限:
+
+```bash
+$ ceph auth get-or-create client.libvirt mon 'profile rbd' osd 'profile rbd pool=rbd-ssd, profile rbd pool=rbd-hdd'
+```
+
+然后获取 `libvirt` 用户的 key:
+
+```bash
+$ ceph auth get-key client.libvirt
+AQC7Dnxp0uonJBAA+ayFsBKXhD4l5EBUpHJQKg==
+```
+
+KVM 主机:
+
+把这个 key 复制保存到 KVM 主机的文件中:
+
+```bash
+$ echo 'AQC7Dnxp0uonJBAA+ayFsBKXhD4l5EBUpHJQKg==' > /root/client.libvirt.key
+```
+
+然后创建一个定义 secret 的文件:
+
+```bash
+# 创建一个uuid
+$ uuidgen
+0e7cd75d-59dc-439b-a178-15231214e5b1
+
+$ vim /root/secret-ceph-libvirt.xml
+<secret ephemeral='no' private='yes'>
+  <uuid>0e7cd75d-59dc-439b-a178-15231214e5b1</uuid>
+  <usage type='ceph'>
+    <name>client.libvirt secret</name>
+  </usage>
+</secret>
+```
+
+通过配置文件定义 secret:
+
+```bash
+$ virsh secret-define /root/secret-ceph-libvirt.xml
+Secret 0e7cd75d-59dc-439b-a178-15231214e5b1 created
+```
+
+查看 secret 是否存在:
+
+```bash
+$ virsh secret-list
+ UUID                                   Usage
+--------------------------------------------------------------------
+ 0e7cd75d-59dc-439b-a178-15231214e5b1   ceph client.libvirt secret
+```
+
+将 ceph 的 libvirt 用户的 key 设置为 secret 的值,参考 [官方文档](https://libvirt.org/formatsecret.html#setting-secret-values-in-virsh):
+
+```bash
+$ virsh secret-set-value 0e7cd75d-59dc-439b-a178-15231214e5b1 --file  /root/client.libvirt.key
+Secret value set
+```
+
+> 由于 ceph 的 `key` 已经是 Base64 编码后的格式,所以不需要添加 `--plain` 参数,添加的话会导致 Base 重复编码
+
+创建存储池的配置文件:
+
+```bash
+$ vim /root/rbd-ssd-pool.xml
+<pool type='rbd'>
+  <name>rbd-ssd-pool</name>
+  <source>
+    <name>rbd-ssd</name>
+
+    <host name='42.51.26.2' port='3300'/>
+    <host name='42.51.26.3' port='3300'/>
+    <host name='42.51.26.4' port='3300'/>
+
+    <auth username='libvirt' type='ceph'>
+      <secret uuid='0e7cd75d-59dc-439b-a178-15231214e5b1'/>
+    </auth>
+  </source>
+</pool>
+
+$ vim rbd-hdd-pool.xml
+<pool type='rbd'>
+  <name>rbd-hdd-pool</name>
+  <source>
+    <name>rbd-hdd</name>
+
+    <host name='42.51.26.2' port='3300'/>
+    <host name='42.51.26.3' port='3300'/>
+    <host name='42.51.26.4' port='3300'/>
+
+    <auth username='libvirt' type='ceph'>
+      <secret uuid='0e7cd75d-59dc-439b-a178-15231214e5b1'/>
+    </auth>
+  </source>
+</pool>
+```
+
+> 注意 `username` 不能带 `client.` 的前缀
+
+定义,启动,启用存储池:
+
+```bash
+$ virsh pool-define /root/rbd-ssd-pool.xml
+Pool rbd-ssd-pool defined from /root/rbd-ssd-pool.xml
+$ virsh pool-define /root/rbd-hdd-pool.xml 
+Pool rbd-hdd-pool defined from /root/rbd-hdd-pool.xml
+$ virsh pool-start rbd-ssd-pool
+Pool rbd-ssd-pool started
+$ virsh pool-start rbd-hdd-pool
+Pool rbd-hdd-pool started
+$ virsh pool-autostart rbd-ssd-pool
+Pool rbd-ssd-pool marked as autostarted
+$ virsh pool-autostart rbd-hdd-pool
+Pool rbd-hdd-pool marked as autostarted
+```
+
+然后可以在 `cockpit` 中看到存储池,但是 `Cockpit` 不支持通过 Rados 存储池创建和挂载卷,查看这个 [issue](https://github.com/cockpit-project/cockpit-machines/issues/68),可以通过 `virt-manager` 创建和挂载到虚拟机.
+
 ## 问题
 
 ### virt-manager
@@ -483,6 +674,50 @@ ssh kvmhost "echo ok"
 ```
 
 然后在 virt-manager 中新建连接时主机名填写成 `kvmhost` ,多条隧道会复用同一个 SSH 连接,通常只需认证一次.
+
+### 启动存储池报错
+
+类似于:
+
+```bash
+$ virsh pool-start test-rbd-ssd
+error: Failed to start pool test-rbd-ssd
+error: failed to connect to the RADOS monitor on: 42.51.26.2:3300,: No such file or directory
+```
+
+查看日志:
+
+```bash
+$ journalctl -u libvirtd -n 80 --no-pager
+Jan 30 01:30:17 kvm libvirtd[180975]: 2026-01-30T01:30:17.084+0000 7f763e60b640 -1 auth: failed to decode key '/dev/std'
+Jan 30 01:30:17 kvm libvirtd[180975]: 2026-01-30T01:30:17.088+0000 7f763e60b640 -1 auth: failed to decode key '/dev/std'
+Jan 30 01:30:17 kvm libvirtd[180975]: 2026-01-30T01:30:17.088+0000 7f763e60b640 -1 auth: failed to decode key '/dev/std'
+Jan 30 01:30:17 kvm libvirtd[180975]: 2026-01-30T01:30:17.088+0000 7f763e60b640 -1 monclient: keyring not found
+Jan 30 01:30:17 kvm libvirtd[180975]: failed to connect to the RADOS monitor on: 42.51.26.2:3300,: No such file or directory
+```
+
+这是由于创建密钥时使用的是不被支持的方式:
+
+```bash
+$ virsh secret-set-value --secret de114586-9d28-45c0-9b2c-bfee3c372ef3 --base64 "$(cat /root/client.libvirt.key)"
+```
+
+正确的方式参考 [官方文档](https://libvirt.org/formatsecret.html#setting-secret-values-in-virsh):
+
+```bash
+$ virsh secret-set-value de114586-9d28-45c0-9b2c-bfee3c372ef3 --file  /root/client.libvirt.key
+Secret value set
+```
+
+如果使用 `--plan` 参数会导致 Base64 重复编码,会导致类似下面的报错:
+
+```bash
+Jan 30 01:39:02 kvm libvirtd[180975]: 2026-01-30T01:39:02.739+0000 7f763ee0c640 -1 auth: failed to decode key 'QVFBbm1YRnBxcGgzRFJBQU9SL0VsSm93Z2ZzSlBmUmZtMk9MbFE9PQo='
+Jan 30 01:39:02 kvm libvirtd[180975]: 2026-01-30T01:39:02.739+0000 7f763ee0c640 -1 auth: failed to decode key 'QVFBbm1YRnBxcGgzRFJBQU9SL0VsSm93Z2ZzSlBmUmZtMk9MbFE9PQo='
+Jan 30 01:39:02 kvm libvirtd[180975]: 2026-01-30T01:39:02.739+0000 7f763ee0c640 -1 auth: failed to decode key 'QVFBbm1YRnBxcGgzRFJBQU9SL0VsSm93Z2ZzSlBmUmZtMk9MbFE9PQo='
+Jan 30 01:39:02 kvm libvirtd[180975]: 2026-01-30T01:39:02.739+0000 7f763ee0c640 -1 monclient: keyring not found
+Jan 30 01:39:02 kvm libvirtd[180975]: failed to connect to the RADOS monitor on: 42.51.26.2:3300,: No such file or directory
+```
 
 ## 参考
 

@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-12-23T16:27:51+08:00
-lastmod: 2026-01-21T15:12:41+08:00
+lastmod: 2026-02-02T16:58:07+08:00
 ---
 
 ## Windows  
@@ -19,6 +19,10 @@ Ventoy 是一个用于制作可启动 U 盘的开源工具。它的独特之处�
 
 - [使用Ventoy集成多PE打造强大U盘](https://blog.talen.top/posts/a595b813/index.html)  
 - [UEFI模式安全启动操作说明](https://www.ventoy.net/cn/doc_secure.html)  
+
+### 修改远程桌面端口
+
+参考 [官方文档](https://learn.microsoft.com/zh-cn/windows-server/remote/remote-desktop-services/remotepc/change-listening-port?tabs=powershell)
 
 ## Linux  
 

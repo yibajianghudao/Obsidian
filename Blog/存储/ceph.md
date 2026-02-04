@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2026-01-22T10:40:28+08:00
+lastmod: 2026-01-30T10:28:44+08:00
 ---
 
 ## 概述
@@ -643,6 +643,24 @@ ceph status
     objects: 0 objects, 0 B
     usage:   0 B used, 0 B / 0 B avail
     pgs:     
+```
+
+#### 复制密钥和配置文件
+
+引导主机之外的机器需要密钥和配置文件才能通过 `ceph` 管理集群,从引导主机复制 `/etc/ceph/ceph.conf` 和 `/etc/ceph/ceph.client.admin.keyring` :
+
+```bash
+scp /etc/ceph/ceph.conf /etc/ceph/ceph.client.admin.keyring root@ceph3:/etc/ceph/
+```
+
+`/etc/ceph/ceph.conf` 需要配置 `mon` 的地址:
+
+```bash
+[root@ceph1 ~]# cat /etc/ceph/ceph.conf 
+# minimal ceph.conf for e34c50e0-dedc-11f0-9b15-68a8282ec412
+[global]
+        fsid = e34c50e0-dedc-11f0-9b15-68a8282ec412
+        mon_host = [v2:192.168.1.3:3300/0,v1:192.168.1.3:6789/0],[v2:192.168.1.4:3300/0,v1:192.168.1.4:6789/0]
 ```
 
 ### 添加主机
@@ -1330,6 +1348,276 @@ pool 1 'device_health_metrics' replicated size 3 min_size 2 crush_rule 0 object_
 pool 6 'rbd-hdd' replicated size 3 min_size 2 crush_rule 1 object_hash rjenkins pg_num 32 pgp_num 32 autoscale_mode on last_change 3087 flags hashpspool stripe_width 0 application rbd
 pool 7 'rbd-ssd' replicated size 3 min_size 2 crush_rule 2 object_hash rjenkins pg_num 32 pgp_num 32 autoscale_mode on last_change 3086 flags hashpspool,selfmanaged_snaps stripe_width 0 application rbd
 
+```
+
+#### RBD Pool
+
+创建 RBD Pool 后需要初始化:
+
+```bash
+[root@ceph1 ~]# ceph osd pool create rbd-hdd replicated hdd_rule
+[root@ceph1 ~]# ceph osd pool application enable rbd-hdd rbd
+[root@ceph1 ~]# rbd pool init rbd-hdd
+```
+
+## 迁移网络
+
+现在 Ceph 集群运行在内网中,`public_network` 是 `192.168.1.0/24`,`cluster_network` 没有配置:
+
+```bash
+[root@ceph1 ~]# cat /etc/ceph/ceph.conf 
+# minimal ceph.conf for e34c50e0-dedc-11f0-9b15-68a8282ec412
+[global]
+        fsid = e34c50e0-dedc-11f0-9b15-68a8282ec412
+        mon_host = [v2:192.168.1.2:3300/0,v1:192.168.1.2:6789/0]
+        
+[root@ceph1 ~]# ceph config get mon public_network
+192.168.1.0/24
+[root@ceph1 ~]# ceph config get mon cluster_network
+```
+
+要把它改到公网上,我的所有机器位于同一个公网上 (`42.51.26.x`)
+
+现在集群中的 mon,osd 等都运行在内网上:
+
+```bash
+[root@ceph1 ~]# ceph mon dump
+
+dumped monmap epoch 5
+epoch 5
+fsid e34c50e0-dedc-11f0-9b15-68a8282ec412
+last_changed 2025-12-22T09:21:42.929677+0000
+created 2025-12-22T02:21:18.610889+0000
+min_mon_release 15 (octopus)
+0: [v2:192.168.1.2:3300/0,v1:192.168.1.2:6789/0] mon.ceph1
+1: [v2:192.168.1.3:3300/0,v1:192.168.1.3:6789/0] mon.ceph2
+2: [v2:192.168.1.4:3300/0,v1:192.168.1.4:6789/0] mon.ceph3
+
+[root@ceph1 ~]# ceph osd find 1 | sed -n '1,120p'
+{
+    "osd": 1,
+    "addrs": {
+        "addrvec": [
+            {
+                "type": "v2",
+                "addr": "192.168.1.2:6810",
+                "nonce": 1130820776
+            },
+            {
+                "type": "v1",
+                "addr": "192.168.1.2:6811",
+                "nonce": 1130820776
+            }
+        ]
+    },
+    "osd_fsid": "24276a5c-8199-43f5-b100-6c9845b7c96a",
+    "host": "ceph1",
+    "crush_location": {
+        "host": "ceph1",
+        "root": "default"
+    }
+}
+```
+
+首先将 mon 迁移到公网,根据官方手册 [Moving Monitors to a Different Network](### Moving Monitors to a Different Network[](https://docs.ceph.com/en/latest/cephadm/services/mon/#moving-monitors-to-a-different-network "Permalink to this heading")):
+
+```bash
+# 关闭自动放置
+ceph orch apply mon --unmanaged
+
+# 设置集群网络和客户端网络
+ceph config set global public_network 42.51.26.0/24
+ceph config set global cluster_network 192.168.1.0/24
+# 确认当前集群状态
+[root@ceph1 ~]# ceph -s
+  cluster:
+    id:     e34c50e0-dedc-11f0-9b15-68a8282ec412
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph1,ceph2,ceph3 (age 4w)
+    mgr: ceph1.djiyps(active, since 4w), standbys: ceph3.didzkk
+    osd: 36 osds: 36 up (since 4w), 36 in (since 4w)
+ 
+  data:
+    pools:   3 pools, 65 pgs
+    objects: 6 objects, 152 B
+    usage:   38 GiB used, 156 TiB / 156 TiB avail
+    pgs:     65 active+clean
+
+```
+
+一个个的删除旧的 mon 并新建,确保 mon 的 daemon 处于 `running` 状态,且集群处于 `quorum` 状态后再处理下一个:
+
+```bash
+# 删除旧mon
+[root@ceph1 ~]# ceph orch daemon rm --force mon.ceph1
+Removed mon.ceph1 from host 'ceph1'
+# 在公网ip上新建一个mon
+[root@ceph2 ~]# ceph orch daemon add mon ceph1:42.51.26.2
+Deployed mon.ceph1 on host 'ceph1'
+
+[root@ceph2 ~]# ceph orch ps | grep mon.ceph1
+mon.ceph1            ceph1  starting      -          -    <unknown>  <unknown>                                 <unknown>     <unknown>    
+
+[root@ceph2 ~]# ceph orch ps | grep mon.ceph1
+mon.ceph1            ceph1  running (11m)  117s ago   11m  15.2.17  quay.io/ceph/ceph:v15                     93146564743f  1b6d565d6efc  
+
+[root@ceph2 ~]# ceph -s
+  cluster:
+    id:     e34c50e0-dedc-11f0-9b15-68a8282ec412
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph2,ceph3,ceph1 (age 5s)
+    mgr: ceph1.djiyps(active, since 4w), standbys: ceph3.didzkk
+    osd: 36 osds: 36 up (since 4w), 36 in (since 4w)
+ 
+  data:
+    pools:   3 pools, 65 pgs
+    objects: 6 objects, 152 B
+    usage:   38 GiB used, 156 TiB / 156 TiB avail
+    pgs:     65 active+clean
+ 
+[root@ceph2 ~]# ceph mon dump
+dumped monmap epoch 7
+epoch 7
+fsid e34c50e0-dedc-11f0-9b15-68a8282ec412
+last_changed 2026-01-22T08:05:21.382193+0000
+created 2025-12-22T02:21:18.610889+0000
+min_mon_release 15 (octopus)
+0: [v2:192.168.1.3:3300/0,v1:192.168.1.3:6789/0] mon.ceph2
+1: [v2:192.168.1.4:3300/0,v1:192.168.1.4:6789/0] mon.ceph3
+2: [v2:42.51.26.2:3300/0,v1:42.51.26.2:6789/0] mon.ceph1
+
+[root@ceph1 ~]# ceph orch daemon rm --force mon.ceph2
+Removed mon.ceph2 from host 'ceph2'
+[root@ceph1 ~]# ceph orch daemon add mon ceph2:42.51.26.3
+Deployed mon.ceph2 on host 'ceph2'
+
+[root@ceph1 ~]# ceph orch daemon rm --force mon.ceph3
+Removed mon.ceph3 from host 'ceph3'
+[root@ceph1 ~]# ceph orch daemon add mon ceph3:42.51.26.4
+Deployed mon.ceph3 on host 'ceph3'
+```
+
+> `ceph1` 是引导主机,他上面的 `ceph1.mon` 被删除之后 `ceph1` 的 `ceph` 命令无法连接到集群,这是由于默认情况下 `/etc/ceph/ceph.conf` 文件中写入的 `mon` 的 ip 是 `ceph1.mon`,此时集群中还有两个 mon(`ceph2.mon` 和 `ceph3.mon`),可以修改完配置文件为 `ceph2.mon` 和 `ceph3.mon` 的 ip 之后运行 `ceph` 命令,也可以使用 `ceph -m ip -s` 来临时指定 mon 的 ip 地址
+
+mon 迁移完之后检查所有 mon 的 ip 和集群状态:
+
+```bash
+[root@ceph1 ~]# ceph mon dump
+dumped monmap epoch 11
+epoch 11
+fsid e34c50e0-dedc-11f0-9b15-68a8282ec412
+last_changed 2026-01-22T08:17:44.998115+0000
+created 2025-12-22T02:21:18.610889+0000
+min_mon_release 15 (octopus)
+0: [v2:42.51.26.2:3300/0,v1:42.51.26.2:6789/0] mon.ceph1
+1: [v2:42.51.26.3:3300/0,v1:42.51.26.3:6789/0] mon.ceph2
+2: [v2:42.51.26.4:3300/0,v1:42.51.26.4:6789/0] mon.ceph3
+[root@ceph1 ~]# ceph -s
+  cluster:
+    id:     e34c50e0-dedc-11f0-9b15-68a8282ec412
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph1,ceph2,ceph3 (age 2m)
+    mgr: ceph1.djiyps(active, since 4w), standbys: ceph3.didzkk
+    osd: 36 osds: 36 up (since 4w), 36 in (since 4w)
+ 
+  data:
+    pools:   3 pools, 65 pgs
+    objects: 6 objects, 152 B
+    usage:   38 GiB used, 156 TiB / 156 TiB avail
+    pgs:     65 active+clean
+ 
+```
+
+然后更新 mon 使用的 `public_network`:
+
+```bash
+[root@ceph1 ~]# ceph config set mon public_network 42.51.26.0/24
+[root@ceph1 ~]# ceph config get mon public_network
+42.51.26.0/24
+[root@ceph1 ~]# ceph config get mon cluster_network
+192.168.1.0/24
+```
+
+由于客户端会直接连接 OSD,所以 OSD 必须也选中公网网段作为 public 地址
+
+首先设置 OSD`public_network`:
+
+```bash
+# 查看当前集群的网络配置
+[root@ceph1 ~]# ceph config dump | egrep 'public_network|cluster_network'
+global               advanced  cluster_network                        192.168.1.0/24                      * 
+global               advanced  public_network                         42.51.26.0/24                       * 
+  mon                advanced  public_network                         42.51.26.0/24                       * 
+
+[root@ceph1 ~]# ceph config set osd public_network 42.51.26.0/24
+[root@ceph1 ~]# ceph config set osd cluster_network 192.168.1.0/24
+# 再次查看,检查配置是否生效
+[root@ceph1 ~]# ceph config dump | egrep 'public_network|cluster_network'
+global               advanced  cluster_network                        192.168.1.0/24                      * 
+global               advanced  public_network                         42.51.26.0/24                       * 
+  mon                advanced  public_network                         42.51.26.0/24                       * 
+  osd                advanced  cluster_network                        192.168.1.0/24                      * 
+  osd                advanced  public_network                         42.51.26.0/24                       * 
+```
+
+先设置 `noout`,避免滚动时触发大量迁移:
+
+```bash
+ceph osd set noout
+```
+
+手动重启一个 osd 尝试:
+
+```bash
+[root@ceph1 ~]# ceph osd find 0 | egrep 'addr|public|cluster'
+
+    "addrs": {
+        "addrvec": [
+                "addr": "192.168.1.2:6802",
+                "addr": "192.168.1.2:6803",
+
+[root@ceph1 ~]# ceph orch daemon restart osd.0
+Scheduled to restart osd.0 on host 'ceph1'
+[root@ceph1 ~]# ceph osd find 0 | egrep 'addr|public|cluster'
+    "addrs": {
+        "addrvec": [
+                "addr": "42.51.26.2:6802",
+                "addr": "42.51.26.2:6803",
+```
+
+然后使用脚本一个机器上的所有 osd 一个个的重启:
+
+```bash
+ceph orch ps --hostname "ceph1" --daemon_type osd \
+| awk 'NR>1 {print $1}' \
+| sort -V \
+| while read -r d; do
+    echo "restarting $d on $HOST"
+    ceph orch daemon restart "$d"
+    sleep 10
+  done
+```
+
+抽出其中的一个 osd 检查 ip 是否正常:
+
+```bash
+[root@ceph1 ~]# ceph osd find 16 | egrep 'addr|public|cluster'
+    "addrs": {
+        "addrvec": [
+                "addr": "42.51.26.3:6812",
+                "addr": "42.51.26.3:6813",
+```
+
+取消 `noout`:
+
+```bash
+ceph osd unset noout
 ```
 
 ## 排错
@@ -2062,6 +2350,185 @@ removed mds gid 44459
 [root@ceph1 ~]# ceph orch ps --hostname ceph3 --refresh
 [root@ceph1 ~]# ceph health detail
 HEALTH_OK
+```
+
+### 测试 Crush Rule
+
+创建了 `ssd_rule` 和 `hdd_rule` 两个 Crush Rule,一个是数据只落在 hdd 磁盘,一个是只落在 ssd 磁盘,分别创建了一个 pool,现在测试是否正常:
+
+两个 rule 的信息:
+
+```bash
+[root@ceph1 ~]# ceph osd crush class ls
+[
+    "ssd",
+    "hdd"
+]
+[root@ceph1 ~]# ceph osd crush rule dump ssd_rule
+{
+    "rule_id": 2,
+    "rule_name": "ssd_rule",
+    "ruleset": 2,
+    "type": 1,
+    "min_size": 1,
+    "max_size": 10,
+    "steps": [
+        {
+            "op": "take",
+            "item": -2,
+            "item_name": "default~ssd"
+        },
+        {
+            "op": "chooseleaf_firstn",
+            "num": 0,
+            "type": "host"
+        },
+        {
+            "op": "emit"
+        }
+    ]
+}
+
+[root@ceph1 ~]# ceph osd crush rule dump hdd_rule
+{
+    "rule_id": 1,
+    "rule_name": "hdd_rule",
+    "ruleset": 1,
+    "type": 1,
+    "min_size": 1,
+    "max_size": 10,
+    "steps": [
+        {
+            "op": "take",
+            "item": -6,
+            "item_name": "default~hdd"
+        },
+        {
+            "op": "chooseleaf_firstn",
+            "num": 0,
+            "type": "host"
+        },
+        {
+            "op": "emit"
+        }
+    ]
+}
+```
+
+两个 pool:
+
+```bash
+[root@ceph1 ~]# ceph osd pool get rbd-ssd crush_rule
+crush_rule: ssd_rule
+[root@ceph1 ~]# ceph osd pool get rbd-hdd crush_rule
+crush_rule: hdd_rule
+[root@ceph1 ~]# ceph df
+--- RAW STORAGE ---
+CLASS  SIZE     AVAIL    USED     RAW USED  %RAW USED
+hdd    147 TiB  147 TiB  1.8 GiB    29 GiB       0.02
+ssd    8.2 TiB  8.2 TiB  116 MiB   9.1 GiB       0.11
+TOTAL  156 TiB  156 TiB  1.9 GiB    38 GiB       0.02
+```
+
+测试:
+
+```bash
+[root@ceph1 ~]# rbd create rbd-ssd/ceph-ssd-test --size 10240
+[root@ceph1 ~]# rbd bench --pool rbd-ssd ceph-ssd-test --io-type write --io-size 4M --io-threads 4 --io-total 1024M
+bench  type write io_size 4194304 io_threads 4 bytes 1073741824 pattern sequential
+  SEC       OPS   OPS/SEC   BYTES/SEC
+    1        32   35.0549   140 MiB/s
+    2        64    32.963   132 MiB/s
+    3        80   27.8803   112 MiB/s
+    4        88   22.6164    90 MiB/s
+   10       100   10.3291    41 MiB/s
+   13       108   6.30155    25 MiB/s
+   15       116   3.74439    15 MiB/s
+   16       120   3.03249    12 MiB/s
+   18       128   2.85644    11 MiB/s
+   19       136   3.71992    15 MiB/s
+   20       144   5.12111    20 MiB/s
+   21       152   6.06902    24 MiB/s
+   23       156   4.77536    19 MiB/s
+   24       160   5.38923    22 MiB/s
+   26       168   4.84501    19 MiB/s
+   27       172   3.99616    16 MiB/s
+   28       176   3.52955    14 MiB/s
+   29       180   4.07348    16 MiB/s
+   30       184   3.82059    15 MiB/s
+   32       188   3.02447    12 MiB/s
+   33       192    3.3235    13 MiB/s
+   35       200   3.28196    13 MiB/s
+   37       204   3.01975    12 MiB/s
+   38       208   3.05162    12 MiB/s
+   39       212   3.87612    16 MiB/s
+   40       220   3.86169    15 MiB/s
+   41       224   4.61025    18 MiB/s
+   42       236   6.88792    28 MiB/s
+   43       240   5.50323    22 MiB/s
+   44       244   6.43759    26 MiB/s
+   45       252   5.79523    23 MiB/s
+elapsed: 47   ops: 256   ops/sec: 5.42532   bytes/sec: 22 MiB/s
+[root@ceph1 ~]# rados -p rbd-ssd ls | head
+rbd_data.d908d0062d13.000000000000002c
+rbd_data.d908d0062d13.000000000000000d
+rbd_data.d908d0062d13.00000000000007a3
+rbd_data.d908d0062d13.0000000000000503
+rbd_data.d908d0062d13.0000000000000785
+rbd_data.d908d0062d13.000000000000003c
+rbd_data.d908d0062d13.0000000000000014
+rbd_data.d908d0062d13.0000000000000519
+rbd_data.d908d0062d13.00000000000002af
+rbd_data.d908d0062d13.000000000000001c
+[root@ceph1 ~]# ceph osd map rbd-ssd rbd_data.d908d0062d13.000000000000002c
+osdmap e3514 pool 'rbd-ssd' (7) object 'rbd_data.d908d0062d13.000000000000002c' -> pg 7.90388c00 (7.0) -> up ([27,20,2], p27) acting ([27,20,2], p27)
+```
+
+可以看到 OSD 落在 SSD 磁盘上:
+
+```bash
+[root@ceph1 ~]# ceph osd tree
+ID   CLASS  WEIGHT     TYPE NAME       STATUS  REWEIGHT  PRI-AFF
+ -1         155.60193  root default                             
+ -3          51.87561      host ceph1                           
+  3    hdd    5.45799          osd.3       up   1.00000  1.00000
+  4    hdd    5.45799          osd.4       up   1.00000  1.00000
+  5    hdd    5.45799          osd.5       up   1.00000  1.00000
+  6    hdd    5.45799          osd.6       up   1.00000  1.00000
+  7    hdd    5.45799          osd.7       up   1.00000  1.00000
+  8    hdd    5.45799          osd.8       up   1.00000  1.00000
+  9    hdd    5.45799          osd.9       up   1.00000  1.00000
+ 10    hdd    5.45799          osd.10      up   1.00000  1.00000
+ 11    hdd    5.45799          osd.11      up   1.00000  1.00000
+  0    ssd    0.91789          osd.0       up   1.00000  1.00000
+  1    ssd    0.91789          osd.1       up   1.00000  1.00000
+  2    ssd    0.91789          osd.2       up   1.00000  1.00000
+ -7          51.85071      host ceph2                           
+ 12    hdd    5.45799          osd.12      up   1.00000  1.00000
+ 13    hdd    5.45799          osd.13      up   1.00000  1.00000
+ 15    hdd    5.45799          osd.15      up   1.00000  1.00000
+ 16    hdd    5.45799          osd.16      up   1.00000  1.00000
+ 17    hdd    5.45799          osd.17      up   1.00000  1.00000
+ 23    hdd    5.45799          osd.23      up   1.00000  1.00000
+ 24    hdd    5.45799          osd.24      up   1.00000  1.00000
+ 25    hdd    5.45799          osd.25      up   1.00000  1.00000
+ 26    hdd    5.45799          osd.26      up   1.00000  1.00000
+ 20    ssd    0.90959          osd.20      up   1.00000  1.00000
+ 21    ssd    0.90959          osd.21      up   1.00000  1.00000
+ 22    ssd    0.90959          osd.22      up   1.00000  1.00000
+-10          51.87561      host ceph3                           
+ 30    hdd    5.45799          osd.30      up   1.00000  1.00000
+ 31    hdd    5.45799          osd.31      up   1.00000  1.00000
+ 32    hdd    5.45799          osd.32      up   1.00000  1.00000
+ 33    hdd    5.45799          osd.33      up   1.00000  1.00000
+ 34    hdd    5.45799          osd.34      up   1.00000  1.00000
+ 35    hdd    5.45799          osd.35      up   1.00000  1.00000
+ 36    hdd    5.45799          osd.36      up   1.00000  1.00000
+ 37    hdd    5.45799          osd.37      up   1.00000  1.00000
+ 38    hdd    5.45799          osd.38      up   1.00000  1.00000
+ 27    ssd    0.91789          osd.27      up   1.00000  1.00000
+ 28    ssd    0.91789          osd.28      up   1.00000  1.00000
+ 29    ssd    0.91789          osd.29      up   1.00000  1.00000
 ```
 
 ## 参考
