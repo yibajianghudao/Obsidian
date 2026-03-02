@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2026-01-30T10:28:44+08:00
+lastmod: 2026-02-24T15:49:26+08:00
 ---
 
 ## 概述
@@ -1359,6 +1359,32 @@ pool 7 'rbd-ssd' replicated size 3 min_size 2 crush_rule 2 object_hash rjenkins 
 [root@ceph1 ~]# ceph osd pool application enable rbd-hdd rbd
 [root@ceph1 ~]# rbd pool init rbd-hdd
 ```
+
+### 巡检
+
+排查延迟高的 OSD:
+
+1. `ceph osd perf`,查看延迟大于 100ms 的 osd 的 id,例如 `OSD.200`
+2. `ceph osd find 200`,找到 osd 所在的节点
+3. ssh 到对应的节点上
+4. `ceph-volume lvm list | grep -A20 "osd.200"`,找出 osd 对应的磁盘 (注意不是 osd 上面的磁盘,那是上一个 osd 的磁盘,找到 osd 那一行的 block 对应的名称)
+5. `lsblk` 找到对应的磁盘以及磁盘大小
+
+记录信息:
+
+1. 巡检时间
+2. OSD 编号
+3. 延迟
+4. 节点
+5. 磁盘
+6. 磁盘大小
+7. 备注
+
+> 制作 excel 表时可以在右侧另起一列使用下面的代码快速生成 `ceph-colume` 命令:
+> ```bash
+> # 注意把B8替换为OSDid的那一列
+> =CONCATENATE("ceph-volume lvm list | grep -A20 ""osd.",B8,"""")
+> ```
 
 ## 迁移网络
 

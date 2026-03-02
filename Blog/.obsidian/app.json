@@ -13,5 +13,6 @@
   "autoConvertHtml": true,
   "showUnsupportedFiles": true,
   "alwaysUpdateLinks": true,
-  "showLineNumber": false
+  "showLineNumber": false,
+  "vimMode": true
 }

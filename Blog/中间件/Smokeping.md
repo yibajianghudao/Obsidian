@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-20T09:35:03+08:00  
-lastmod: 2026-01-21T16:11:30+08:00
+lastmod: 2026-02-12T12:47:32+08:00
 ---
 
 ## 安装  
@@ -191,17 +191,17 @@ uid=1000(newuser) gid=1000(newuser) groups=1000(newuser),10(wheel),995(docker)
 
 #### 不需要 Basic auth
 
-Smokeping 有打包好的 [镜像](https://hub.docker.com/r/linuxserver/smokeping)
+Smokeping 有打包好的 [镜像](https://hub.docker.com/r/linuxserver/smokeping),[这个网址](https://docker.aityp.com/image/docker.io/linuxserver/smokeping:2.7.3) 有国内镜像
 
 ```bash
 # 使用镜像站拉取
-docker pull m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
+docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/linuxserver/smokeping:2.7.3
 
 # 修改一下tag
-docker tag m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3 smokeping:2.7.3
+docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/linuxserver/smokeping:2.7.3 smokeping:2.7.3
 
 # 删除旧镜像
-docker rmi m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
+docker rmi swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/linuxserver/smokeping:2.7.3
 ```
 
 运行：
@@ -221,17 +221,18 @@ docker run -d --name=smokeping -p 8881:80 -e PUID=1000 -e PGID=1000 -v /opt/smok
 #### 需要 Basic auth
 
 smokeping 容器内自带一个 apache 服务器，但是在直接设置 Basic auth 无法使用，参考这个 [issue](https://github.com/linuxserver/docker-smokeping/issues/85)，我们可以再使用一个 Nginx 容器 (也可以是 apache) 在外部进行 Basic auth 认证。  
-拉取 smokeping[镜像](https://hub.docker.com/r/linuxserver/smokeping) 和 Nginx 镜像
+拉取 smokeping[镜像](https://docker.aityp.com/image/docker.io/linuxserver/smokeping:2.7.3) 和 Nginx 镜像
 
 ```bash
-docker pull m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
+# 从国内镜像站拉取镜像
+docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/linuxserver/smokeping:2.7.3
 docker pull swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.27.0
 
 # 修改一下tag
-docker tag m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3 smokeping:2.7.3
-docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.27.0  docker.io/nginx:1.27.0
+docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/linuxserver/smokeping:2.7.3 smokeping:2.7.3
+docker tag swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.27.0  nginx:1.27.0
 # 删除旧镜像
-docker rmi m.daocloud.io/docker.io/linuxserver/smokeping:2.7.3
+docker rmi swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/linuxserver/smokeping:2.7.3
 docker rmi swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/nginx:1.27.0
 ```
 
@@ -363,6 +364,12 @@ host 是主机,可以指定 ip 地址,也可以指定标识符层级,例如 `/Ot
 ![](assets/Smokeping/配置-20251025115757028.png)  
 页面最后还有一个总结图  
 ![](assets/Smokeping/配置-20251025115835469.png)  
+
+修改完配置文件之后需要手动重启 daemon:
+
+```bash
+systemctl restart smokeping
+```
 
 ## 问题  
 
