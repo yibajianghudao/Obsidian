@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2026-02-10T09:23:21+08:00
-lastmod: 2026-03-02T17:33:59+08:00
+lastmod: 2026-03-06T15:49:52+08:00
 ---
 
 ## 部署
@@ -456,16 +456,55 @@ openstack subnet create --network external-net \
 
 ## windows server
 
-### 导入镜像
+### 使用传统接口
 
 ```bash
-openstack image create "Windows-Server-2022-ISO" \
+openstack image create "Windows-Server-2022" \
   --file windowsserver2022_zh-cn.iso \
   --disk-format iso \
   --container-format bare \
   --public
 ```
 
+制作安装光盘卷:
+
+```bash
+openstack volume create --type ceph-hdd --image Windows-Server-2022 --size 6 win-iso
+```
+
+创建系统卷
+
+```bash
+openstack volume create --type ceph-ssd --size 400 win-system
+```
+
+设置可引导和旧显卡
+
+```bash
+# 标记为可启动盘，防止 Nova 报错
+openstack volume set --bootable win-system
+
+# 强制要求 Nova 分配 e1000 老式千兆网卡
+openstack volume set --image-property hw_vif_model=e1000 win-system
+```
+
+创建实例:
+
+```bash
+SYSTEM_DISK_ID=$(openstack volume show win-system -c id -f value)
+ISO_VOL_ID=$(openstack volume show win-iso -c id -f value)
+
+openstack server create \
+  --flavor NAS \
+  --network external-net \
+  --block-device source_type=volume,uuid=$SYSTEM_DISK_ID,destination_type=volume,boot_index=0,disk_bus=sata \
+  --block-device source_type=volume,uuid=$ISO_VOL_ID,destination_type=volume,boot_index=1,device_type=cdrom,disk_bus=ide \
+  Win2022
+```
+
+### 使用 virtio
+
+> 以下内容未经测试跑通
 windows server 没有对 virtio 的支持,需要使用 `virtio-win`,从 [这个链接](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/) 下载,然后也制作成镜像:
 
 ```bash
@@ -500,7 +539,7 @@ $ openstack flavor create "NAS" --vcpus 4 --ram 8192 --disk 400
 +----------------------------+--------------------------------------+
 ```
 
-### 使用 KVM
+#### 使用 KVM
 
 参考 [这个指南](https://docs.openstack.org/image-guide/create-images-manually-example-windows-image.html):
 
@@ -585,7 +624,7 @@ root@kvm:~# source /home/kvmuser/kolla-venv/bin/activate
 ```bash
 openstack volume create \
   --type ceph-ssd \
-  --size 400 \
+  --size 50 \
   --image Windows-Server-2022 \
   win2022
 ```
@@ -593,7 +632,7 @@ openstack volume create \
 创建实例:
 
 ```bash
-openstack server create --flavor NAS --network external-net --volume win2022 Win2022
+openstack server create --flavor NAS --network external-net --volume win2022 --password "Admin123." Win2022
 ```
 
 ## 排错

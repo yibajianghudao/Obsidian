@@ -34,9 +34,23 @@
               "icon": "lucide-file",
               "title": "VPN"
             }
+          },
+          {
+            "id": "5b5dd1fc496eb7fe",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "虚拟机/OpenStack.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "OpenStack"
+            }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -109,13 +123,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "网络/VPN.md",
+                "file": "虚拟机/OpenStack.md",
                 "followCursor": true,
                 "showSearch": true,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "VPN 的大纲"
+              "title": "OpenStack 的大纲"
             }
           },
           {
@@ -230,9 +244,12 @@
       "obsidian-shellcommands:Shell commands: Custom variables": false
     }
   },
-  "active": "228d06e0607166c2",
+  "active": "c2f7a8b83f58bd4d",
   "lastOpenFiles": [
+    "Linux/修改密码.md",
+    "虚拟机/安装系统.md",
     "虚拟机/OpenStack.md",
+    "网络/VPN.md",
     "Linux/Linux.md",
     "数据库/MySQL.md",
     "虚拟机/KVM.md",
@@ -266,8 +283,6 @@
     "Linux/assets/Linux/Linux.md",
     "网络/远程登录.md",
     "网络/常见的网络端口.md",
-    "中间件/Grafana.md",
-    "中间件/Zabbix.md",
     "网络/assets/VPN/使用NetworkManager VPN代替Windows VPN-20260224150332350.png",
     "网络/assets/VPN",
     "copilot/copilot-conversations",
