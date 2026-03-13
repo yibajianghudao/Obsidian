@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-11-25T15:39:52+08:00
-lastmod: 2026-02-24T17:51:00+08:00
+lastmod: 2026-03-11T14:08:36+08:00
 ---
 
 ## 基础知识
@@ -1832,7 +1832,136 @@ ps aux --sort=-%cpu | head -n 10
 分区表有两种常见的格式:
 
 - MBR (Master Boot Record): 传统格式,最多支持 4 个主分区 (可以通过扩展分区设置多个分区),可以使用 `fdisk`,`cfdisk` 等工具分区.
-- GPT(GUID Partition Table): 较新格式,支持超大硬盘,几乎没有分区数量限制,可以使用 `parted` 等工具分区.
+- GPT(GUID Partition Table): 较新格式,支持超大硬盘,几乎没有分区数量限制,可以使用 `gdisk` 工具.
+
+> `parted` 是一个可以同时分区 `MBR` 和 `GPT` 的工具
+
+##### 实验
+
+现在服务器的磁盘状态如下:
+
+```bash
+$ lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+loop0    7:0    0 63.9M  1 loop /snap/core20/2318
+loop1    7:1    0   87M  1 loop /snap/lxd/29351
+loop2    7:2    0 38.8M  1 loop /snap/snapd/21759
+sda      8:0    0   30G  0 disk 
+├─sda1   8:1    0    1M  0 part 
+├─sda2   8:2    0    2G  0 part [SWAP]
+└─sda3   8:3    0   15G  0 part /
+sr0     11:0    1 1024M  0 rom  
+```
+
+现在使用 `gdisk` 分区,可以先输入 `?` 查看帮助信息:
+
+```bash
+$ sudo gdisk /dev/sda
+GPT fdisk (gdisk) version 1.0.8
+
+Partition table scan:
+  MBR: protective
+  BSD: not present
+  APM: not present
+  GPT: present
+
+Found valid GPT with protective MBR; using GPT.
+
+Command (? for help): ?
+b       back up GPT data to a file
+c       change a partition's name
+d       delete a partition
+i       show detailed information on a partition
+l       list known partition types
+n       add a new partition
+o       create a new empty GUID partition table (GPT)
+p       print the partition table
+q       quit without saving changes
+r       recovery and transformation options (experts only)
+s       sort partitions
+t       change a partition's type code
+v       verify disk
+w       write table to disk and exit
+x       extra functionality (experts only)
+?       print this menu
+```
+
+`p` 可以打印当前分区信息 (`l` 是打印所有分区类型)
+
+```bash
+Command (? for help): p
+Disk /dev/sda: 62914560 sectors, 30.0 GiB
+Model: VBOX HARDDISK   
+Sector size (logical/physical): 512/512 bytes
+Disk identifier (GUID): A7A677C2-E37E-4ADD-B34B-B5CA3CCCC971
+Partition table holds up to 128 entries
+Main partition table begins at sector 2 and ends at sector 33
+First usable sector is 34, last usable sector is 62914526
+Partitions will be aligned on 2048-sector boundaries
+Total free space is 25163709 sectors (12.0 GiB)
+
+Number  Start (sector)    End (sector)  Size       Code  Name
+   1            2048            4095   1024.0 KiB  EF02  
+   2            4096         4198399   2.0 GiB     8200  
+   3         4198400        35655679   15.0 GiB    8300
+```
+
+使用 `n` 创建一个分区:
+
+```bash
+Command (? for help): n
+Partition number (5-128, default 5): 
+First sector (34-62914526, default = 37752832) or {+-}size{KMGTP}: 
+Last sector (37752832-62914526, default = 62914526) or {+-}size{KMGTP}: +1024M
+Current type is 8300 (Linux filesystem)
+Hex code or GUID (L to show codes, Enter = 8300): 8E00
+Changed type of partition to 'Linux LVM'
+```
+
+> 注意 `Last sector` 一定要设置,否则会默认使用所有剩余空间
+
+创建之后用 `p` 查看检查,确定之后使用 `w` 保存:
+
+```bash
+Command (? for help): p
+Number  Start (sector)    End (sector)  Size       Code  Name
+   1            2048            4095   1024.0 KiB  EF02  
+   2            4096         4198399   2.0 GiB     8200  
+   3         4198400        35655679   15.0 GiB    8300  
+   4        35655680        37752831   1024.0 MiB  8E00  Linux LVM
+   5        37752832        39849983   1024.0 MiB  8E00  Linux LVM
+   6        39849984        41947135   1024.0 MiB  8E00  Linux LVM
+   7        41947136        44044287   1024.0 MiB  8E00  Linux LVM
+
+Command (? for help): w
+
+Final checks complete. About to write GPT data. THIS WILL OVERWRITE EXISTING
+PARTITIONS!!
+
+Do you want to proceed? (Y/N): y
+OK; writing new GUID partition table (GPT) to /dev/sda.
+Warning: The kernel is still using the old partition table.
+The new table will be used at the next reboot or after you
+run partprobe(8) or kpartx(8)
+The operation has completed successfully.
+```
+
+写入之后由于磁盘正在使用,分区并没有更新,重启或者运行 `partprobe` 之后才会更新:
+
+```bash
+$ sudo partprobe -s
+/dev/sda: gpt partitions 1 2 3 4 5 6 7
+$ lsblk /dev/sda
+NAME   MAJ:MIN RM SIZE RO TYPE MOUNTPOINTS
+sda      8:0    0  30G  0 disk 
+├─sda1   8:1    0   1M  0 part 
+├─sda2   8:2    0   2G  0 part [SWAP]
+├─sda3   8:3    0  15G  0 part /
+├─sda4   8:4    0   1G  0 part 
+├─sda5   8:5    0   1G  0 part 
+├─sda6   8:6    0   1G  0 part 
+└─sda7   8:7    0   1G  0 part 
+```
 
 #### 文件系统
 
@@ -1857,6 +1986,301 @@ mkfs.xfs /dev/sdc1
 ```
 
 #### 逻辑卷管理
+
+逻辑卷管理 (Logical Volume Manager, LVM) 的重点在于 " 可以弹性的调整 filesystem 的容量 ",LVM 可以整合多个实体 partition 或 disk,让这些 partition 看起来像一个磁盘一样,之后可以新增或移除其他的 parttion 到这个磁盘中
+
+LVM 有以下几个概念:
+
+1. 实体卷 (Physical Volume, PV): 由实体磁盘或分区转换而来,是 VG 的组成部分
+2. 卷组 (Volume Group, VG): 由多个 PV 组成,类似于一个大的逻辑磁盘
+3. 逻辑卷 (Logical Volume, LV): 由 VG 切分而来,类似于逻辑磁盘的分区
+4. 实体范围区块 (Physical Extent, PE): PE 是 LVM 最小的保存区块,类似于 block
+
+![](assets/Linux/逻辑卷管理-20260311093710547.png)
+
+> LV 的容量与 LV 内包含的 PE 总量有关,LV 的动态调整实际上是调整包含的 PE 的数量
+
+通过分割成 LV 之后就可以使用 `mkfs` 将 LV 格式化为文件系统,当 LV 调整之后,文件系统也会同步调整其容量.
+
+LV 有两种写入模式:
+
+- 线性模式: 只有前一个 partition 的容量用完才会使用下一个 partition
+- 交错模式: 同时写入多个磁盘,性能更好但冗余低
+
+LVM 主要用处是实现一个可弹性调节容量的文件系统,而不是强调性能与备份 (后者应该使用 RAID)
+
+##### 实验
+
+现在我的磁盘状态如下:
+
+```bash
+$ lsblk /dev/sda
+NAME   MAJ:MIN RM SIZE RO TYPE MOUNTPOINTS
+sda      8:0    0  30G  0 disk 
+├─sda1   8:1    0   1M  0 part 
+├─sda2   8:2    0   2G  0 part [SWAP]
+├─sda3   8:3    0  15G  0 part /
+├─sda4   8:4    0   1G  0 part 
+├─sda5   8:5    0   1G  0 part 
+├─sda6   8:6    0   1G  0 part 
+└─sda7   8:7    0   1G  0 part 
+```
+
+PV 命令:
+
+- `pvcreate` ：将实体 partition 创建成为 PV ；
+- `pvscan` ：搜索目前系统里面任何具有 PV 的磁盘；
+- `pvdisplay` ：显示出目前系统上面的 PV 状态；
+- `pvremove` ：将 PV 属性移除，让该 partition 不具有 PV 属性。
+
+```bash
+root@ubuntu22:~# pvscan
+  No matching physical volumes found
+root@ubuntu22:~# pvcreate /dev/sda{4,5,6}
+  Physical volume "/dev/sda4" successfully created.
+  Physical volume "/dev/sda5" successfully created.
+  Physical volume "/dev/sda6" successfully created.
+root@ubuntu22:~# pvscan
+  PV /dev/sda4                      lvm2 [1.00 GiB]
+  PV /dev/sda5                      lvm2 [1.00 GiB]
+  PV /dev/sda6                      lvm2 [1.00 GiB]
+  Total: 3 [3.00 GiB] / in use: 0 [0   ] / in no VG: 3 [3.00 GiB]
+root@ubuntu22:~# pvdisplay /dev/sda4
+  "/dev/sda4" is a new physical volume of "1.00 GiB"
+  --- NEW Physical volume ---
+  PV Name               /dev/sda4
+  VG Name               
+  PV Size               1.00 GiB
+  Allocatable           NO
+  PE Size               0   
+  Total PE              0
+  Free PE               0
+  Allocated PE          0
+  PV UUID               oHJIx9-yKia-g8N5-Vzjw-dSWP-Yrll-I7yjzh
+   
+root@ubuntu22:~# pvremove /dev/sda4
+  Labels on physical volume "/dev/sda4" successfully wiped.
+root@ubuntu22:~# pvscan
+  PV /dev/sda5                      lvm2 [1.00 GiB]
+  PV /dev/sda6                      lvm2 [1.00 GiB]
+  Total: 2 [2.00 GiB] / in use: 0 [0   ] / in no VG: 2 [2.00 GiB]
+root@ubuntu22:~# pvcreate /dev/sda4
+  Physical volume "/dev/sda4" successfully created.
+root@ubuntu22:~# pvscan
+  PV /dev/sda4                      lvm2 [1.00 GiB]
+  PV /dev/sda5                      lvm2 [1.00 GiB]
+  PV /dev/sda6                      lvm2 [1.00 GiB]
+  Total: 3 [3.00 GiB] / in use: 0 [0   ] / in no VG: 3 [3.00 GiB]
+```
+
+VG 相关的命令:
+
+- `vgcreate` ：就是主要创建 VG 的指令啦！他的参数比较多，等一下介绍。
+- `vgscan` ：搜索系统上面是否有 VG 存在？
+- `vgdisplay` ：显示目前系统上面的 VG 状态；
+- `vgextend` ：在 VG 内增加额外的 PV ；
+- `vgreduce` ：在 VG 内移除 PV；
+- `vgchange` ：设置 VG 是否启动 (active)；
+- `vgremove` ：删除一个 VG 啊！
+
+VG 的名称可以自己定义:
+
+```bash
+# vgcreate [-s N[mgt]] VG名称 PV名称
+选项与参数：
+-s ：后面接 PE 的大小 (size) ，单位可以是 m, g, t (大小写均可)
+```
+
+创建一个 vg:
+
+```bash
+root@ubuntu22:~# vgcreate -s 16M vg1 /dev/sda{4,5,6}
+  Volume group "vg1" successfully created
+root@ubuntu22:~# vgscan
+  Found volume group "vg1" using metadata type lvm2
+# pv的状态也改变了
+root@ubuntu22:~# pvscan
+  PV /dev/sda4   VG vg1             lvm2 [1008.00 MiB / 1008.00 MiB free]
+  PV /dev/sda5   VG vg1             lvm2 [1008.00 MiB / 1008.00 MiB free]
+  PV /dev/sda6   VG vg1             lvm2 [1008.00 MiB / 1008.00 MiB free]
+  Total: 3 [2.95 GiB] / in use: 3 [2.95 GiB] / in no VG: 0 [0   ]
+  
+# 查看vg的详细信息
+root@ubuntu22:~# vgdisplay vg1
+  --- Volume group ---
+  VG Name               vg1
+  System ID             
+  Format                lvm2
+  Metadata Areas        3
+  Metadata Sequence No  1
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                0
+  Open LV               0
+  Max PV                0
+  Cur PV                3
+  Act PV                3
+  VG Size               2.95 GiB
+  PE Size               16.00 MiB
+  Total PE              189
+  Alloc PE / Size       0 / 0   
+  Free  PE / Size       189 / 2.95 GiB
+  VG UUID               tJMCTp-1l13-n05K-Bmxm-GzgN-9QF0-OeQe2V
+   
+```
+
+使用 `vgextend` 和 `vgreduce` 来增加/删除一个 pv:
+
+```bash
+root@ubuntu22:~# pvcreate /dev/sda7 
+  Physical volume "/dev/sda7" successfully created.
+root@ubuntu22:~# vgdisplay vg1
+  --- Volume group ---
+  ...
+  VG Size               <3.94 GiB
+  PE Size               16.00 MiB
+  Total PE              252
+  Alloc PE / Size       0 / 0   
+  Free  PE / Size       252 / <3.94 GiB
+  VG UUID               tJMCTp-1l13-n05K-Bmxm-GzgN-9QF0-OeQe2V
+```
+
+可以看到 vg 的 PE 数量和总容量都增加了
+
+创建完 VG 之后就可以分割开成 LV 了,LV 的命令如下:
+
+- `lvcreate` ：创建 LV 啦！
+- `lvscan` ：查找系统上面的 LV ；
+- `lvdisplay` ：显示系统上面的 LV 状态啊！
+- `lvextend` ：在 LV 里面增加容量！
+- `lvreduce` ：在 LV 里面减少容量；
+- `lvremove` ：删除一个 LV ！
+- `lvresize` ：对 LV 进行容量大小的调整！
+
+```bash
+[root@study ~]# lvcreate [-L N[mgt]] [-n LV名称] VG名称
+[root@study ~]# lvcreate [-l N] [-n LV名称] VG名称
+选项与参数：
+-L  ：后面接容量，容量的单位可以是 M,G,T 等，要注意的是，最小单位为 PE，
+      因此这个数量必须要是 PE 的倍数，若不相符，系统会自行计算最相近的容量。
+-l  ：后面可以接 PE 的『个数』，而不是数量。若要这么做，得要自行计算 PE 数。
+-n  ：后面接的就是 LV 的名称啦！
+```
+
+创建一个 LV:
+
+```bash
+root@ubuntu22:~# lvcreate -L 2G -n lv1 vg1
+  Logical volume "lv1" created.
+root@ubuntu22:~# lvscan
+  ACTIVE            '/dev/vg1/lv1' [2.00 GiB] inherit
+# 注意lv应该使用全名
+root@ubuntu22:~# lvdisplay /dev/vg1/lv1 
+  --- Logical volume ---
+  LV Path                /dev/vg1/lv1
+  LV Name                lv1
+  VG Name                vg1
+  LV UUID                teVb50-1gbM-CP4T-p09A-c3C2-cL0e-nrEecC
+  LV Write Access        read/write
+  LV Creation host, time ubuntu22, 2026-03-11 02:55:33 +0000
+  LV Status              available
+  # open                 0
+  LV Size                2.00 GiB
+  Current LE             128
+  Segments               3
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+   
+```
+
+创建文件系统:
+
+```bash
+root@ubuntu22:~# mkfs.xfs /dev/vg
+vg1/         vga_arbiter  
+root@ubuntu22:~# mkfs.xfs /dev/vg1/lv1 
+meta-data=/dev/vg1/lv1           isize=512    agcount=4, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=602112, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+root@ubuntu22:~# mkdir /lvm
+root@ubuntu22:~# mount /dev/vg1/lv1 /lvm/
+root@ubuntu22:~# df -Th /lvm/
+Filesystem          Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg1-lv1 xfs   2.3G   49M  2.3G   3% /lvm
+root@ubuntu22:~# cp -a /etc /var/log /lvm
+root@ubuntu22:~# df -Th /lvm/
+Filesystem          Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg1-lv1 xfs   2.3G  137M  2.2G   6% /lvm
+```
+
+放大 LV 的容量需要满足以下条件:
+
+1. VG 阶段需要有剩余的容量
+2. 文件系统支持放大
+
+> XFS 文件系统支持放大,EXT 家族支持放大和缩小
+
+放大 LV 和 XFS:
+
+```bash
+# 增大lv
+root@ubuntu22:~# lvresize -L +1G /dev/vg1/lv1 
+  Size of logical volume vg1/lv1 changed from <2.30 GiB (147 extents) to <3.30 GiB (211 extents).
+  Logical volume vg1/lv1 successfully resized.
+root@ubuntu22:~# lvscan
+  ACTIVE            '/dev/vg1/lv1' [<3.30 GiB] inherit
+root@ubuntu22:~# df -Th /lvm
+Filesystem          Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg1-lv1 xfs   2.3G  121M  2.2G   6% /lvm
+
+root@ubuntu22:~# xfs_info /lvm
+meta-data=/dev/mapper/vg1-lv1    isize=512    agcount=4, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=602112, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+# 扩展xfs
+root@ubuntu22:~# xfs_growfs /lvm
+meta-data=/dev/mapper/vg1-lv1    isize=512    agcount=4, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=602112, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+data blocks changed from 602112 to 864256
+
+# 可以看到agcount增加了2,这是因为单个ag最大容量是agsize * bsize 约等于588M
+root@ubuntu22:~# xfs_info /lvm
+meta-data=/dev/mapper/vg1-lv1    isize=512    agcount=6, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=864256, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+```
 
 #### 磁盘状态
 

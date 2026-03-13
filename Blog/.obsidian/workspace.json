@@ -4,53 +4,38 @@
     "type": "split",
     "children": [
       {
-        "id": "445c171e6811547f",
+        "id": "a43e735eb073935e",
         "type": "tabs",
         "children": [
           {
-            "id": "8f5ebaadca596f86",
+            "id": "685be35b5547aa56",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux/Linux.md",
+                "file": "Language/Go/StudyGo.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Linux"
+              "title": "StudyGo"
             }
           },
           {
-            "id": "228d06e0607166c2",
+            "id": "0c8ecfa9300275d0",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "网络/VPN.md",
+                "file": "Linux/防火墙.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "VPN"
-            }
-          },
-          {
-            "id": "5b5dd1fc496eb7fe",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "虚拟机/OpenStack.md",
-                "mode": "source",
-                "source": true
-              },
-              "icon": "lucide-file",
-              "title": "OpenStack"
+              "title": "防火墙"
             }
           }
-        ],
-        "currentTab": 2
+        ]
       }
     ],
     "direction": "vertical"
@@ -123,13 +108,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "虚拟机/OpenStack.md",
-                "followCursor": true,
+                "file": "Language/Go/StudyGo.md",
+                "followCursor": false,
                 "showSearch": true,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "OpenStack 的大纲"
+              "title": "StudyGo 的大纲"
             }
           },
           {
@@ -244,54 +229,54 @@
       "obsidian-shellcommands:Shell commands: Custom variables": false
     }
   },
-  "active": "c2f7a8b83f58bd4d",
+  "active": "685be35b5547aa56",
   "lastOpenFiles": [
-    "Linux/修改密码.md",
-    "虚拟机/安装系统.md",
-    "虚拟机/OpenStack.md",
-    "网络/VPN.md",
+    "工具/npm.md",
+    "工具/Openclaw.md",
+    "Language/Go/StudyGo.md",
+    "Language/Go/_index.md",
+    "Language/_index.md",
+    "_index.md",
+    "Language/Go",
+    "Language",
+    "存储/_index.md",
+    "工具/_index.md",
+    "基础/_index.md",
+    "其它/_index.md",
+    "数据库/_index.md",
+    "题目/_index.md",
+    "网络/_index.md",
+    "虚拟机/_index.md",
+    "中间件/_index.md",
+    "Template/filename.md",
+    "Linux/_index.md",
+    "Linux/防火墙.md",
+    "未命名.md",
     "Linux/Linux.md",
-    "数据库/MySQL.md",
-    "虚拟机/KVM.md",
+    "虚拟机/网络配置.md",
+    "虚拟机/安装系统.md",
+    "Linux/assets/Linux/逻辑卷管理-20260311093710547.png",
+    "存储/ceph.md",
+    "虚拟机/OpenStack.md",
+    "Linux/SELinux.md",
+    "网络/VPN.md",
+    "虚拟机/assets/OpenStack/修改卷类型的可用空间-20260309102423666.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302153359801.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302153325561.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302152947250.png",
     "虚拟机/assets/OpenStack/导入镜像-20260302151204942.png",
     "虚拟机/assets/OpenStack/导入镜像-20260302110731240.png",
     "虚拟机/assets/OpenStack/导入镜像-20260302110634620.png",
-    "中间件/CactiEZ.md",
     "虚拟机/assets/OpenStack/配置存储-20260227142244117.png",
     "虚拟机/assets/OpenStack/创建实例类型-20260227142032129.png",
-    "虚拟机/assets/OpenStack/导入测试镜像-20260227141930186.png",
     "虚拟机/assets/OpenStack",
-    "数据库/_index.md",
-    "未命名.md",
-    "数据库.md",
     "数据库",
-    "存储/_index.md",
-    "工具/_index.md",
-    "基础/_index.md",
-    "其它/_index.md",
-    "其它/IE.md",
-    "题目/_index.md",
-    "网络/_index.md",
-    "虚拟机/_index.md",
-    "中间件/_index.md",
-    "Linux/_index.md",
-    "Template/filename.md",
-    "存储/ceph.md",
-    "Linux/assets/Linux/Linux.md",
-    "网络/远程登录.md",
-    "网络/常见的网络端口.md",
-    "网络/assets/VPN/使用NetworkManager VPN代替Windows VPN-20260224150332350.png",
     "网络/assets/VPN",
     "copilot/copilot-conversations",
     "copilot/copilot-custom-prompts",
     "copilot",
     "虚拟机/assets/安装系统",
     "其它/assets/通过Linux跳板机访问带外",
-    "其它/assets",
-    "工具",
     "未命名.canvas"
   ]
 }
