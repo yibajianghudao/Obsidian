@@ -8,10 +8,12 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2026-03-11T17:43:05+08:00
-lastmod: 2026-03-14T16:00:54+08:00
+lastmod: 2026-03-16T17:22:10+08:00
 ---
 
-## 不要使用指针判断空值和零值
+## 指针
+
+### 不要使用指针判断空值和零值
 
 Go 指针常用于区分已被赋予零值的变量或字段，和完全未被赋值的变量或字段,例如,可能会有代码这样写:
 
@@ -411,6 +413,124 @@ func main() {
     client.GetUser(999) 
 }
 ```
+
+## iota
+
+go 语言中使用 `iota` 实现 " 枚举 ",`iota` 是一个常量计数器,它在 `const` 代码块中为一组常量提供递增的数字.
+
+使用 `iota` 很简单,通常使用 `int` 定义一个类型,然后在 `const` 代码块中使用它赋值:
+
+```go
+type MailCategory int
+
+const (
+    Uncategorized MailCategory = iota // 0
+    Personal                          // 1
+    Spam                              // 2
+    Social                            // 3
+    Advertisements                    // 4
+)
+```
+
+`iota` 的规则如下:
+
+- `iota` 从 `0` 开始,并会在遇到 `const` 块后刷新
+- `iota` 在每一行递增,即使这一行没有使用 `iota`
+- 如果 `const` 块中定义的常量没有指定类型和赋值,则继承自上一个非空表达式
+
+```go
+const (
+    Field1 = 0          // 第0行：iota=0，但这里没用iota，显式赋值为 0
+    Field2 = 1 + iota   // 第1行：iota=1，计算 1 + 1，结果为 2
+    Field3 = 20         // 第2行：iota=2，显式赋值为 20
+    Field4              // 第3行：iota=3，隐式复制上一行表达式，结果为 20
+    Field5 = iota       // 第4行：iota=4，直接赋值，结果为 4
+)
+```
+
+因为 `iota` 本质上是 `int` 数字 (一般使用 `int`),因此可以使用位运算符来生成标志位:
+
+```go
+type FilePermission int
+
+const (
+	Read FilePermission = 1 << iota  // 1
+	Write                            // 2
+	Execute                          // 4
+)
+```
+
+使用 `iota` 时要注意其初始值是 `0`,它可以用来定义默认状态,如果没有则可以使用 `_` 跳过它
+
+`iota` 应该仅用于内部逻辑,如果枚举值对应外部系统,数据库或网络状态,则不应该使用 `iota`,如果未来的维护者在 `const` 中新增了一行新的常量,其后的所有值都会被 `+1`,这会引发及其隐蔽的错误.
+
+下面是一个使用 `iota` 设置权限位的示例:
+
+```go 
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+type FilePermission int
+
+const (
+	Read FilePermission = 1 << iota
+	Write
+	Execute
+)
+
+func Grant(current FilePermission, perm FilePermission) FilePermission {
+	return current | perm
+}
+func HasPermission(current FilePermission, perm FilePermission) bool {
+	return current&perm == perm
+}
+func Revoke(current, perm FilePermission) FilePermission {
+	return current &^ perm
+}
+
+func (p FilePermission) String() string {
+	if p == 0 {
+		return "None"
+	}
+	var perms []string
+
+	if p&Read == Read {
+		perms = append(perms, "Read")
+	}
+	if p&Write == Write {
+		perms = append(perms, "Write")
+	}
+	if p&Execute == Execute {
+		perms = append(perms, "Execute")
+	}
+
+	return strings.Join(perms, "|")
+}
+
+func main() {
+	var cur FilePermission = Read
+	cur = Grant(cur, Write)
+	if !HasPermission(cur, Write) {
+		panic("error, cur don't have write permission.")
+	}
+	cur = Revoke(cur, Read)
+	if HasPermission(cur, Read) {
+		panic("error, cur have read permission.")
+	}
+	fmt.Println("all test is right!")
+	cur = Grant(cur, Read)
+	cur = Grant(cur, Execute)
+	fmt.Println(cur)
+}
+```
+
+这段代码的三个函数分别用来 " 增加权限 ", " 验证权限 " 和 " 删除权限 ".其中的逻辑使用了 go 语言的 [位操作符]()
+
+方法 `String` 是用来格式化打印 `FilePermission` 类型,只要类型实现了 `String` 这个接口,`fmt.Println` 就会调用这个方法来打印字符串.
 
 ## 参考
 

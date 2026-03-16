@@ -126,7 +126,7 @@
     },
     "default-language-for-code-fences": {
       "enabled": true,
-      "default-language": "bash"
+      "default-language": ""
     },
     "emphasis-style": {
       "enabled": false,
@@ -142,7 +142,7 @@
       "list-end-style": "."
     },
     "proper-ellipsis": {
-      "enabled": true
+      "enabled": false
     },
     "quote-style": {
       "enabled": true,
@@ -255,7 +255,7 @@
       "enabled": true
     },
     "proper-ellipsis-on-paste": {
-      "enabled": true
+      "enabled": false
     },
     "remove-hyphens-on-paste": {
       "enabled": false

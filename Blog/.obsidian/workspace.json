@@ -4,11 +4,11 @@
     "type": "split",
     "children": [
       {
-        "id": "a43e735eb073935e",
+        "id": "7b9f68c680134dcc",
         "type": "tabs",
         "children": [
           {
-            "id": "685be35b5547aa56",
+            "id": "f903d14e82ace6aa",
             "type": "leaf",
             "state": {
               "type": "markdown",
@@ -19,20 +19,6 @@
               },
               "icon": "lucide-file",
               "title": "StudyGo"
-            }
-          },
-          {
-            "id": "0c8ecfa9300275d0",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "Linux/防火墙.md",
-                "mode": "source",
-                "source": true
-              },
-              "icon": "lucide-file",
-              "title": "防火墙"
             }
           }
         ]
@@ -229,14 +215,22 @@
       "obsidian-shellcommands:Shell commands: Custom variables": false
     }
   },
-  "active": "685be35b5547aa56",
+  "active": "f903d14e82ace6aa",
   "lastOpenFiles": [
+    "Linux/Linux.md",
+    "存储/ceph.md",
+    "容器/k8s.md",
+    "容器/_index.md",
+    "容器/未命名",
+    "容器/Docker.md",
+    "虚拟机/_index.md",
+    "_index.md",
+    "容器",
+    "Language/Go/StudyGo.md",
     "工具/npm.md",
     "工具/Openclaw.md",
-    "Language/Go/StudyGo.md",
     "Language/Go/_index.md",
     "Language/_index.md",
-    "_index.md",
     "Language/Go",
     "Language",
     "存储/_index.md",
@@ -246,20 +240,14 @@
     "数据库/_index.md",
     "题目/_index.md",
     "网络/_index.md",
-    "虚拟机/_index.md",
     "中间件/_index.md",
     "Template/filename.md",
     "Linux/_index.md",
     "Linux/防火墙.md",
     "未命名.md",
-    "Linux/Linux.md",
     "虚拟机/网络配置.md",
     "虚拟机/安装系统.md",
     "Linux/assets/Linux/逻辑卷管理-20260311093710547.png",
-    "存储/ceph.md",
-    "虚拟机/OpenStack.md",
-    "Linux/SELinux.md",
-    "网络/VPN.md",
     "虚拟机/assets/OpenStack/修改卷类型的可用空间-20260309102423666.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302153359801.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302153325561.png",
@@ -275,8 +263,6 @@
     "copilot/copilot-conversations",
     "copilot/copilot-custom-prompts",
     "copilot",
-    "虚拟机/assets/安装系统",
-    "其它/assets/通过Linux跳板机访问带外",
     "未命名.canvas"
   ]
 }

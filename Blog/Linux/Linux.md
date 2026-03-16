@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-11-25T15:39:52+08:00
-lastmod: 2026-03-11T14:08:36+08:00
+lastmod: 2026-03-16T15:53:47+08:00
 ---
 
 ## 基础知识
@@ -2282,6 +2282,288 @@ log      =internal log           bsize=4096   blocks=2560, version=2
 realtime =none                   extsz=4096   blocks=0, rtextents=0
 ```
 
+#### RAID 管理
+
+这里主要指的是 " 软 RAID"(通过软件层面实现),服务器通常会安装一张 RAID 卡来做 " 硬 RAID". 硬 RAID 卡的性能比较好,软 RAID 会消耗一些系统资源.
+
+关于 RAID 的原理和分类可以查看这篇文章
+
+使用软 RAID 可以使用 `mdadm` 命令,创建的命令如下:
+
+```
+[root@study ~]# mdadm --detail /dev/md0
+[root@study ~]# mdadm --create /dev/md[0-9] --auto=yes --level=[015] --chunk=NK \
+> --raid-devices=N --spare-devices=N /dev/sdx /dev/hdx…
+选项与参数：
+--create          ：为创建 RAID 的选项；
+--auto=yes        ：决定创建后面接的软件磁盘数组设备，亦即 /dev/md0, /dev/md1…
+--chunk=Nk        ：决定这个设备的 chunk 大小，也可以当成 stripe 大小，一般是 64K 或 512K。
+--raid-devices=N  ：使用几个磁盘 (partition) 作为磁盘数组的设备
+--spare-devices=N ：使用几个磁盘作为备用 (spare) 设备
+--level=[015]     ：设置这组磁盘数组的等级。支持很多，不过建议只要用 0, 1, 5 即可
+--detail          ：后面所接的那个磁盘数组设备的详细信息
+```
+
+##### 实验
+
+我创建了五个 1G 大小的磁盘,准备创建一个 raid5(需要最少 3 块),实际上也可以在分区上创建 RAID
+
+磁盘状态如下:
+
+```
+$ lsblk
+nvme0n1 259:0    0    1G  0 disk 
+nvme0n2 259:1    0    1G  0 disk 
+nvme0n3 259:2    0    1G  0 disk 
+nvme0n4 259:3    0    1G  0 disk 
+nvme0n5 259:4    0    1G  0 disk 
+```
+
+创建 RAID:
+
+```
+$ sudo mdadm --create /dev/md0 --auto=yes --level=5 --chunk=256K --raid-devices=4 --spare-devices=1 /dev/nvme0n{1,2,3,4,5}
+```
+
+这里使用了 4 块磁盘制作 RAID5,1 块磁盘当作备用磁盘 (会在有磁盘故障时自动替换)
+
+查看 RAID 状态:
+
+```
+$ sudo mdadm --detail /dev/md0 
+/dev/md0:
+           Version : 1.2
+     Creation Time : Mon Mar 16 03:27:27 2026
+        Raid Level : raid5                       # raid级别
+        Array Size : 3139584 (2.99 GiB 3.21 GB)  # 可用容量
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)  # 每个磁盘设备的容量
+      Raid Devices : 4                           # 组成raid的磁盘数量
+     Total Devices : 5                           # 包括spare的磁盘总数
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Mar 16 03:27:37 2026
+             State : clean                       # raid的使用状态
+    Active Devices : 4
+   Working Devices : 5
+    Failed Devices : 0
+     Spare Devices : 1
+
+            Layout : left-symmetric
+        Chunk Size : 256K
+
+Consistency Policy : resync
+
+              Name : ubuntu22:0  (local to host ubuntu22)
+              UUID : b7f92e29:0806522d:8c309923:f75da2df
+            Events : 18
+
+    Number   Major   Minor   RaidDevice State
+       0     259        0        0      active sync   /dev/nvme0n1
+       1     259        1        1      active sync   /dev/nvme0n2
+       2     259        2        2      active sync   /dev/nvme0n3
+       5     259        3        3      active sync   /dev/nvme0n4
+
+       4     259        4        -      spare   /dev/nvme0n5
+```
+
+可以看到四个磁盘正在使用,一个磁盘备用,总容量是三个磁盘的大小
+
+还可以查看 `/proc/mdstat` 文件内容来查看系统软件 RAID 的情况:
+
+```
+$ cat /proc/mdstat
+Personalities : [linear] [multipath] [raid0] [raid1] [raid6] [raid5] [raid4] [raid10] 
+md0 : active raid5 nvme0n4[5] nvme0n5[4](S) nvme0n3[2] nvme0n2[1] nvme0n1[0]
+      3139584 blocks super 1.2 level 5, 256k chunk, algorithm 2 [4/4] [UUUU]
+      
+unused devices: <none>
+```
+
+> - 第一行：指出 md0 为 raid5 ，且使用了 nvme0n4, nvme0n5, nvme0n3, nvme0n2 等四个磁盘设备。每个设备后面的中括号 [] 内的数字为此磁盘在 RAID 中的顺序 (RaidDevice)；至于 nvme0n5 后面的 [S] 则代表 nvme0n5 为 spare 之意。
+> - 第二行：此磁盘数组拥有 3139584 个 block(每个 block 单位为 1K)，所以总容量约为 3GB， 使用 RAID 5 等级，写入磁盘的小区块 (chunk) 大小为 256K，使用 algorithm 2 磁盘数组算法。 [m/n] 代表此数组需要 m 个设备，且 n 个设备正常运作。因此本 md0 需要 4 个设备且这 4 个设备均正常运作。 后面的 [UUUU] 代表的是四个所需的设备 (就是 [m/n] 里面的 m) 的启动情况，U 代表正常运作，若为 _ 则代表不正常。
+
+挂载和使用:
+
+```
+$ sudo mkfs.xfs -f -d su=256k,sw=3 -r extsize=768k /dev/md0
+meta-data=/dev/md0               isize=512    agcount=8, agsize=98048 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=784384, imaxpct=25
+         =                       sunit=64     swidth=192 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=5184, version=2
+         =                       sectsz=512   sunit=64 blks, lazy-count=1
+realtime =none                   extsz=786432 blocks=0, rtextents=0
+
+$ sudo mkdir /raid
+$ sudo mount /dev/md0 /raid/
+$ sudo cp -a /etc/ /var/ /raid/
+$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           794M  1.2M  793M   1% /run
+/dev/sda3        15G  6.2G  7.8G  44% /
+tmpfs           3.9G     0  3.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           794M  4.0K  794M   1% /run/user/1000
+/dev/md0        3.0G  1.1G  2.0G  36% /raid
+```
+
+管理 raid 的语法:
+
+```
+mdadm --manage /dev/md[0-9] [--add 设备] [--remove 设备] [--fail 设备] 
+选项与参数：
+--add    ：会将后面的设备加入到这个 md 中！
+--remove ：会将后面的设备由这个 md 中移除
+--fail   ：会将后面的设备设置成为出错的状态
+```
+
+模拟磁盘损坏:
+
+```
+$ sudo mdadm --manage /dev/md0 --fail /dev/nvme0n3 
+mdadm: set /dev/nvme0n3 faulty in /dev/md0
+$ sudo mdadm --detail /dev/md0 
+/dev/md0:
+           Version : 1.2
+     Creation Time : Mon Mar 16 03:27:27 2026
+        Raid Level : raid5
+        Array Size : 3139584 (2.99 GiB 3.21 GB)
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
+      Raid Devices : 4
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Mar 16 03:46:04 2026
+             State : clean 
+    Active Devices : 4
+   Working Devices : 4
+    Failed Devices : 1
+     Spare Devices : 0
+
+            Layout : left-symmetric
+        Chunk Size : 256K
+
+Consistency Policy : resync
+
+              Name : ubuntu22:0  (local to host ubuntu22)
+              UUID : b7f92e29:0806522d:8c309923:f75da2df
+            Events : 37
+
+    Number   Major   Minor   RaidDevice State
+       0     259        0        0      active sync   /dev/nvme0n1
+       1     259        1        1      active sync   /dev/nvme0n2
+       4     259        4        2      active sync   /dev/nvme0n5
+       5     259        3        3      active sync   /dev/nvme0n4
+
+       2     259        2        -      faulty   /dev/nvme0n3
+```
+
+RAID5 会进行自动修复,磁盘损坏之后我们需要将出错的硬盘移除并安装新的磁盘:
+
+```
+# 移除磁盘
+$ sudo mdadm --manage /dev/md0 --remove /dev/nvme0n3
+```
+
+关机并更换硬盘后:
+
+```
+$ sudo mdadm --manage /dev/md127 --add /dev/nvme0n6 
+mdadm: added /dev/nvme0n6
+$ sudo mdadm --detail /dev/md127
+/dev/md127:
+           Version : 1.2
+     Creation Time : Mon Mar 16 03:27:27 2026
+        Raid Level : raid5
+        Array Size : 3139584 (2.99 GiB 3.21 GB)
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
+      Raid Devices : 4
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Mar 16 06:27:20 2026
+             State : clean 
+    Active Devices : 4
+   Working Devices : 5
+    Failed Devices : 0
+     Spare Devices : 1
+
+            Layout : left-symmetric
+        Chunk Size : 256K
+
+Consistency Policy : resync
+
+              Name : ubuntu22:0  (local to host ubuntu22)
+              UUID : b7f92e29:0806522d:8c309923:f75da2df
+            Events : 42
+
+    Number   Major   Minor   RaidDevice State
+       0     259        0        0      active sync   /dev/nvme0n1
+       1     259        1        1      active sync   /dev/nvme0n2
+       4     259        4        2      active sync   /dev/nvme0n5
+       5     259        3        3      active sync   /dev/nvme0n4
+
+       6     259        5        -      spare   /dev/nvme0n6
+```
+
+md 名字变化是因为没有设置自动挂载,编辑配置文件:
+
+```
+$ sudo vim /etc/mdadm/mdadm.conf 
+ARRAY /dev/md0 UUID=b7f92e29:0806522d:8c309923:f75da2df
+
+# 配置写入内核
+$ sudo update-initramfs -u
+```
+
+上面是配置 RAID 的自动挂载,还可以给 RAID 上的文件系统配置自动挂载:
+
+```
+## 查看文件系统uuid
+$ blkid /dev/md127
+/dev/md127: UUID="e959a38b-ea6b-4d80-9c2b-2251abf60f8b" BLOCK_SIZE="512" TYPE="xfs"
+
+$ sudo vim /etc/fstab
+UUID=e959a38b-ea6b-4d80-9c2b-2251abf60f8b /raid xfs defaults 0 0
+```
+
+关闭软 RAID
+
+```
+# 取消挂载
+$ sudo umount /raid 
+# 注释自动挂载
+$ sudo vim /etc/fstab 
+#UUID=e959a38b-ea6b-4d80-9c2b-2251abf60f8b /raid xfs defaults 0 0
+
+# 停止RAID
+$ sudo mdadm --manage /dev/md0 --stop
+mdadm: stopped /dev/md0
+
+# 删除超级块
+$ sudo mdadm --zero-superblock /dev/nvme0n1 
+$ sudo mdadm --zero-superblock /dev/nvme0n2
+$ sudo mdadm --zero-superblock /dev/nvme0n4
+$ sudo mdadm --zero-superblock /dev/nvme0n5
+
+# 此时已经没有raid配置了
+$ cat /proc/mdstat 
+Personalities : [raid6] [raid5] [raid4] [linear] [multipath] [raid0] [raid1] [raid10] 
+unused devices: <none>
+
+# 删除自动挂载raid
+$ sudo vim /etc/mdadm/mdadm.conf 
+#ARRAY /dev/md0 UUID=b7f92e29:0806522d:8c309923:f75da2df
+
+# 更新引导镜像
+sudo update-initramfs -u
+```
+
+> 如果存在已经移除的磁盘,其中也会保存元数据,可以使用 `dd if=/dev/zero of=/dev/nvme0n3 bs=1M count=10` 删除
+
 #### 磁盘状态
 
 #### 挂载
@@ -2872,6 +3154,6 @@ apt-mark hold package
 
 ## 参考
 
-https://www.coonote.com/linux-note/linux-modifying-maximum-file-descriptor.html
-
-命令部分大量参考 [Linux Command](https://wangchujiang.com/linux-command/)
+- https://www.coonote.com/linux-note/linux-modifying-maximum-file-descriptor.html
+- 命令部分大量参考 [Linux Command](https://wangchujiang.com/linux-command/)
+- 基础知识部分参考 [鸟哥的 Linux 私房菜](https://vbird.org.cn/)
