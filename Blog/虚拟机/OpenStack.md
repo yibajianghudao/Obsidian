@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2026-02-10T09:23:21+08:00
-lastmod: 2026-03-09T16:24:20+08:00
+lastmod: 2026-03-17T11:03:52+08:00
 ---
 
 ## 部署
@@ -679,6 +679,16 @@ $ openstack server create \
   --block-device source_type=volume,uuid=ac3d0022-52e3-4071-9046-9a93cea3fee7,destination_type=volume,boot_index=1
 ,device_type=cdrom,disk_bus=ide \
   CentOS7       
+```
+
+## 关机
+
+首先停止所有虚拟机,然后
+
+```
+(kolla-venv) kvmuser@kvm:~$ sudo cp kolla-ansible/all-in-one /etc/kolla/ansible/inventory/
+(kolla-venv) kvmuser@kvm:~$ kolla-ansible stop --yes-i-really-really-mean-it
+(kolla-venv) kvmuser@kvm:~$sudo shutdown -h now
 ```
 
 ## 排错

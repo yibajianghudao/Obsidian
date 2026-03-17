@@ -13,15 +13,44 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Language/Go/StudyGo.md",
+                "file": "虚拟机/OpenStack.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "StudyGo"
+              "title": "OpenStack"
+            }
+          },
+          {
+            "id": "304317ef3f425dc8",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "存储/ceph.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "ceph"
+            }
+          },
+          {
+            "id": "b876b2cbd02aed02",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "虚拟机/安装系统.md",
+                "mode": "source",
+                "source": true
+              },
+              "icon": "lucide-file",
+              "title": "安装系统"
             }
           }
-        ]
+        ],
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -94,13 +123,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Language/Go/StudyGo.md",
+                "file": "虚拟机/安装系统.md",
                 "followCursor": false,
                 "showSearch": true,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "StudyGo 的大纲"
+              "title": "安装系统 的大纲"
             }
           },
           {
@@ -201,7 +230,8 @@
       }
     ],
     "direction": "horizontal",
-    "width": 208.5
+    "width": 208.5,
+    "collapsed": true
   },
   "left-ribbon": {
     "hiddenItems": {
@@ -215,18 +245,22 @@
       "obsidian-shellcommands:Shell commands: Custom variables": false
     }
   },
-  "active": "f903d14e82ace6aa",
+  "active": "b876b2cbd02aed02",
   "lastOpenFiles": [
+    "虚拟机/assets/安装系统/Vyos-20260317153938667.png",
+    "虚拟机/assets/安装系统/Vyos-20260317153935464.png",
+    "虚拟机/assets/安装系统/Vyos-20260317153849682.png",
     "Linux/Linux.md",
     "存储/ceph.md",
+    "虚拟机/OpenStack.md",
     "容器/k8s.md",
+    "Language/Go/StudyGo.md",
     "容器/_index.md",
     "容器/未命名",
     "容器/Docker.md",
     "虚拟机/_index.md",
     "_index.md",
     "容器",
-    "Language/Go/StudyGo.md",
     "工具/npm.md",
     "工具/Openclaw.md",
     "Language/Go/_index.md",
@@ -245,8 +279,6 @@
     "Linux/_index.md",
     "Linux/防火墙.md",
     "未命名.md",
-    "虚拟机/网络配置.md",
-    "虚拟机/安装系统.md",
     "Linux/assets/Linux/逻辑卷管理-20260311093710547.png",
     "虚拟机/assets/OpenStack/修改卷类型的可用空间-20260309102423666.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302153359801.png",
@@ -255,8 +287,6 @@
     "虚拟机/assets/OpenStack/导入镜像-20260302151204942.png",
     "虚拟机/assets/OpenStack/导入镜像-20260302110731240.png",
     "虚拟机/assets/OpenStack/导入镜像-20260302110634620.png",
-    "虚拟机/assets/OpenStack/配置存储-20260227142244117.png",
-    "虚拟机/assets/OpenStack/创建实例类型-20260227142032129.png",
     "虚拟机/assets/OpenStack",
     "数据库",
     "网络/assets/VPN",

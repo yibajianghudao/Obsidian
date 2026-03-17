@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-11-25T15:39:52+08:00
-lastmod: 2026-03-16T15:53:47+08:00
+lastmod: 2026-03-17T09:21:13+08:00
 ---
 
 ## 基础知识
@@ -2228,7 +2228,7 @@ Filesystem          Type  Size  Used Avail Use% Mounted on
 1. VG 阶段需要有剩余的容量
 2. 文件系统支持放大
 
-> XFS 文件系统支持放大,EXT 家族支持放大和缩小
+> XFS 和 ZFS 文件系统只支持放大,EXT 家族和 btrfs 支持放大和缩小
 
 放大 LV 和 XFS:
 

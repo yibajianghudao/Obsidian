@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-24T16:36:17+08:00  
-lastmod: 2026-02-24T15:49:26+08:00
+lastmod: 2026-03-17T11:30:39+08:00
 ---
 
 ## 概述
@@ -1646,6 +1646,103 @@ ceph orch ps --hostname "ceph1" --daemon_type osd \
 ceph osd unset noout
 ```
 
+## 关机
+
+> 停止整个 Ceph 集群涉及停止所有 MON、OSD、MGR 等守护进程服务。在生产环境中执行关机操作时务必小心，以避免数据丢失或损坏。请确保已做好数据备份，并且集群未在提供关键业务服务。
+
+### 验证集群健康状态
+
+在启动关机流程之前，请确保 Ceph 集群处于健康状态，检查是否有正在进行的维护任务、数据复制问题或 OSD 故障。
+
+```
+[root@ceph1 ~]# ceph -s
+  cluster:
+    id:     e34c50e0-dedc-11f0-9b15-68a8282ec412
+    health: HEALTH_OK
+ 
+  services:
+    mon: 3 daemons, quorum ceph1,ceph2,ceph3 (age 7w)
+    mgr: ceph1.djiyps(active, since 2M), standbys: ceph3.didzkk
+    osd: 36 osds: 36 up (since 7w), 36 in (since 2M)
+ 
+  data:
+    pools:   12 pools, 353 pgs
+    objects: 27.04k objects, 104 GiB
+    usage:   346 GiB used, 155 TiB / 156 TiB avail
+    pgs:     353 active+clean
+ 
+  io:
+    client:   12 KiB/s wr, 0 op/s rd, 0 op/s wr
+```
+
+### 停止数据读写并备份
+
+确保已经备份了关键数据。同时，停止任何正在向 Ceph 集群写入数据的应用程序或客户端程序。这可以防止在集群关闭期间写入新数据，从而降低数据丢失或损坏的风险。
+
+### 设置 OSD 标志位
+
+在关闭节点之前，需要修改集群的 OSD 配置参数，暂停集群的读写并关闭自动恢复和重平衡操作，避免在关机过程中触发不必要的数据迁移或节点剔除。
+
+需要设置的标志位包括：
+
+- `noout`: 防止 OSD 没有响应时被标记为 "out"。
+- `nobackfill`: 禁用集群中的回填操作。
+- `norecover`: 禁用集群 OSD 恢复操作。
+- `norebalance`: 禁用 Ceph 集群重平衡操作。
+- `nodown`: 防止 OSD 被标记为 "down"，避免不必要的集群状态调整。
+- `pause`: 暂停 Ceph 集群的所有读写操作。
+
+```
+[root@ceph1 ~]# ceph osd set noout
+noout is set
+[root@ceph1 ~]# ceph osd set nobackfill
+nobackfill is set
+[root@ceph1 ~]# ceph osd set norecover
+norecover is set
+[root@ceph1 ~]# ceph osd set norebalance
+norebalance is set
+[root@ceph1 ~]# ceph osd set nodown
+nodown is set
+[root@ceph1 ~]# ceph osd set pause
+pauserd,pausewr is set
+```
+
+设置完标志之后再次检查一下状态,确保标志成功设置:
+
+```
+[root@ceph1 ~]# ceph -s
+  cluster:
+    id:     e34c50e0-dedc-11f0-9b15-68a8282ec412
+    health: HEALTH_WARN
+            pauserd,pausewr,nodown,noout,nobackfill,norebalance,norecover flag(s) set
+ 
+  services:
+    mon: 3 daemons, quorum ceph1,ceph2,ceph3 (age 7w)
+    mgr: ceph1.djiyps(active, since 2M), standbys: ceph3.didzkk
+    osd: 36 osds: 36 up (since 7w), 36 in (since 2M)
+         flags pauserd,pausewr,nodown,noout,nobackfill,norebalance,norecover
+ 
+  data:
+    pools:   12 pools, 353 pgs
+    objects: 27.04k objects, 104 GiB
+    usage:   346 GiB used, 155 TiB / 156 TiB avail
+    pgs:     353 active+clean
+ 
+```
+
+### 关机
+
+安装以下顺序关闭集群节点:
+
+1. **Ceph 服务节点**：如果运行了独立的服务节点（如 RGW 等），请先将其关闭。
+2. **Ceph OSD 节点**：登录每个 OSD 节点并执行正常关机。
+3. **Ceph MON 节点**：登录每个 MON 节点并执行正常关机。
+4. **Ceph MGR 节点**：登录每个 MGR 节点并执行正常关机。
+
+```
+[root@ceph1 ~]#  systemctl poweroff
+```
+
 ## 排错
 
 ### mon daemon 错误
@@ -2564,3 +2661,4 @@ ID   CLASS  WEIGHT     TYPE NAME       STATUS  REWEIGHT  PRI-AFF
 - [ceph官方文档](https://docs.ceph.com/en/latest/cephadm/)
 - [ceph官方文档-中文机翻](https://www.wuzao.com/ceph/en/latest/cephadm/install/index.html#cephadm-install-curl)
 - [分布式存储ceph](https://www.yuque.com/xianzhou-eiffx/aklhoc/vz2kwrequbkhoxhv)
+- [How to Start Stop or Restart Ceph Services](https://kifarunix.com/how-to-start-stop-or-restart-ceph-services/)
