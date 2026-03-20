@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2026-03-11T17:43:05+08:00
-lastmod: 2026-03-16T17:22:10+08:00
+lastmod: 2026-03-18T10:23:25+08:00
 ---
 
 ## 指针
@@ -531,6 +531,46 @@ func main() {
 这段代码的三个函数分别用来 " 增加权限 ", " 验证权限 " 和 " 删除权限 ".其中的逻辑使用了 go 语言的 [位操作符]()
 
 方法 `String` 是用来格式化打印 `FilePermission` 类型,只要类型实现了 `String` 这个接口,`fmt.Println` 就会调用这个方法来打印字符串.
+
+### 组合
+
+go 语言中没有继承,可以使用组合来提升代码的重用功能:
+
+```go
+type Employee struct {
+	id   string
+	name string
+}
+
+func (e Employee) Description() string {
+	return fmt.Sprintf("%s %s", e.name, e.id)
+}
+
+type Manager struct {
+	Employee
+	Report []Employee
+}
+
+func (m Manager) FindNewEmployees() []Employee {
+	return []Employee{}
+}
+```
+
+在 `Manager` 类型中设置了一个 `Employee` 类型的字段,该字段没有分配名称,因此称为 " 内嵌字段 ",在内嵌字段中声明的任何字段和方法都可以被提升到包含的结构体中,并可以直接调用:
+
+```go
+func main() {
+	m := Manager{
+		Employee: Employee{
+			name: "Bob",
+			id:   "12345",
+		},
+		Report: []Employee{},
+	}
+	fmt.Println(m.name)
+	fmt.Println(m.Description())
+}
+```
 
 ## 参考
 
