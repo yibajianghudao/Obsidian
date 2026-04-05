@@ -27,7 +27,15 @@ sudo yum makecache fast
 yum install -y docker-ce-24.0.7-1.el7 docker-ce-cli-24.0.7-1.el7 containerd.io
 ```
 
-## 经验
+## 格式
+### Dockerfile
+#### run entrypoint cmd的区别
+`RUN`指令用于在Dockerfile中执行构建和配置Docker镜像的命令,这些命令在镜像构建过程中执行,并且每个`RUN`指令都会在Dokcer镜像中创建一个新层.例如可以使用`RUN`来执行安装软件和库的命令:
+``` Dokcerfile
+RUN apt update && apt -y install apache2
+```
+
+## 排错
 
 ### docker compose
 
@@ -148,8 +156,7 @@ mysql> SHOW DATABASES;
 原来是我关闭 docker compose 集群时使用的命令是
 
 ```bash
-➜  exercise3 git:(main) ✗ docker compose down
-WARN[0000] /workspace/exercise3/docker-compose.yml: `version` is obsolete 
+$ docker compose down
 [+] Running 4/4
  ✔ Container exercise3-nginx-1    Removed                                                                            0.8s 
  ✔ Container exercise3-app-1      Removed                                                                            0.7s 
