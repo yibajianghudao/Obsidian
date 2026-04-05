@@ -4,39 +4,24 @@
     "type": "split",
     "children": [
       {
-        "id": "445c171e6811547f",
+        "id": "7b9f68c680134dcc",
         "type": "tabs",
         "children": [
           {
-            "id": "8f5ebaadca596f86",
+            "id": "304317ef3f425dc8",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Linux/Linux.md",
+                "file": "虚拟机/网络配置.md",
                 "mode": "source",
                 "source": true
               },
               "icon": "lucide-file",
-              "title": "Linux"
-            }
-          },
-          {
-            "id": "228d06e0607166c2",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "网络/VPN.md",
-                "mode": "source",
-                "source": true
-              },
-              "icon": "lucide-file",
-              "title": "VPN"
+              "title": "网络配置"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -93,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 244.5
+    "width": 200
   },
   "right": {
     "id": "fcea3789067d1396",
@@ -109,13 +94,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "网络/VPN.md",
-                "followCursor": true,
+                "file": "虚拟机/网络配置.md",
+                "followCursor": false,
                 "showSearch": true,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "VPN 的大纲"
+              "title": "网络配置 的大纲"
             }
           },
           {
@@ -230,53 +215,54 @@
       "obsidian-shellcommands:Shell commands: Custom variables": false
     }
   },
-  "active": "228d06e0607166c2",
+  "active": "304317ef3f425dc8",
   "lastOpenFiles": [
-    "虚拟机/OpenStack.md",
+    "虚拟机/安装系统.md",
+    "中间件/Smokeping.md",
+    "Language/Go/StudyGo.md",
+    "Server/MyServer.md",
+    "存储/ceph.md",
+    "Server/GreatMing.md",
+    "Server.md",
+    "Server",
+    "_index.md",
+    "虚拟机/assets/安装系统/Vyos-20260317153938667.png",
+    "虚拟机/assets/安装系统/Vyos-20260317153935464.png",
+    "虚拟机/assets/安装系统/Vyos-20260317153849682.png",
     "Linux/Linux.md",
-    "数据库/MySQL.md",
-    "虚拟机/KVM.md",
+    "虚拟机/OpenStack.md",
+    "容器/k8s.md",
+    "容器/_index.md",
+    "容器/未命名",
+    "容器/Docker.md",
+    "虚拟机/_index.md",
+    "容器",
+    "工具/npm.md",
+    "工具/Openclaw.md",
+    "Language/Go/_index.md",
+    "Language/_index.md",
+    "Language/Go",
+    "Language",
+    "存储/_index.md",
+    "工具/_index.md",
+    "基础/_index.md",
+    "其它/_index.md",
+    "数据库/_index.md",
+    "题目/_index.md",
+    "网络/_index.md",
+    "中间件/_index.md",
+    "Linux/assets/Linux/逻辑卷管理-20260311093710547.png",
+    "虚拟机/assets/OpenStack/修改卷类型的可用空间-20260309102423666.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302153359801.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302153325561.png",
     "虚拟机/assets/OpenStack/使用 KVM-20260302152947250.png",
     "虚拟机/assets/OpenStack/导入镜像-20260302151204942.png",
     "虚拟机/assets/OpenStack/导入镜像-20260302110731240.png",
-    "虚拟机/assets/OpenStack/导入镜像-20260302110634620.png",
-    "中间件/CactiEZ.md",
-    "虚拟机/assets/OpenStack/配置存储-20260227142244117.png",
-    "虚拟机/assets/OpenStack/创建实例类型-20260227142032129.png",
-    "虚拟机/assets/OpenStack/导入测试镜像-20260227141930186.png",
     "虚拟机/assets/OpenStack",
-    "数据库/_index.md",
-    "未命名.md",
-    "数据库.md",
     "数据库",
-    "存储/_index.md",
-    "工具/_index.md",
-    "基础/_index.md",
-    "其它/_index.md",
-    "其它/IE.md",
-    "题目/_index.md",
-    "网络/_index.md",
-    "虚拟机/_index.md",
-    "中间件/_index.md",
-    "Linux/_index.md",
-    "Template/filename.md",
-    "存储/ceph.md",
-    "Linux/assets/Linux/Linux.md",
-    "网络/远程登录.md",
-    "网络/常见的网络端口.md",
-    "中间件/Grafana.md",
-    "中间件/Zabbix.md",
-    "网络/assets/VPN/使用NetworkManager VPN代替Windows VPN-20260224150332350.png",
     "网络/assets/VPN",
     "copilot/copilot-conversations",
     "copilot/copilot-custom-prompts",
-    "copilot",
-    "虚拟机/assets/安装系统",
-    "其它/assets/通过Linux跳板机访问带外",
-    "其它/assets",
-    "工具",
     "未命名.canvas"
   ]
 }

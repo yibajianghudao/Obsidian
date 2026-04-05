@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2026-02-10T09:23:21+08:00
-lastmod: 2026-03-02T17:33:59+08:00
+lastmod: 2026-03-17T11:03:52+08:00
 ---
 
 ## 部署
@@ -437,6 +437,125 @@ openstack volume type set --property volume_backend_name=rbd-hdd ceph-hdd
 
 ![](assets/OpenStack/配置存储-20260227142244117.png)
 
+#### 修改卷类型的可用空间
+
+查看卷类型:
+
+```bash
+$ openstack volume type list
++--------------------------------------+-------------+-----------+
+| ID                                   | Name        | Is Public |
++--------------------------------------+-------------+-----------+
+| 006e4840-8e50-414e-a0bf-cd568e1d841d | ceph-hdd    | True      |
+| 60a110ad-4f66-4e3b-a274-9aedd354b24d | ceph-ssd    | True      |
+| ba71b269-b937-41e3-9c5a-207f50743078 | __DEFAULT__ | True      |
++--------------------------------------+-------------+-----------+
+```
+
+修改卷类型的可用空间 (默认 1000G) 需要修改配额,配额是绑定在项目上的,先查看一下所有项目:
+
+```bash
+$ openstack project list
++----------------------------------+---------+
+| ID                               | Name    |
++----------------------------------+---------+
+| 7e0b9fa77a9a4892ae9ab700168d521d | service |
+| d1a73b9c325b4fe696d2400c63c21a65 | admin   |
++----------------------------------+---------+
+```
+
+查看 admin 项目的配额:
+
+```bash
+$ openstack quota show admin
++-----------------------+-------+
+| Resource              | Limit |
++-----------------------+-------+
+| cores                 |    20 |
+| instances             |    10 |
+| ram                   | 51200 |
+| fixed_ips             |  None |
+| networks              |   100 |
+| volumes               |    10 |
+| snapshots             |    10 |
+| gigabytes             |  1000 |
+| backups               |    10 |
+| volumes_ceph-hdd      |    -1 |
+| gigabytes_ceph-hdd    |    -1 |
+| snapshots_ceph-hdd    |    -1 |
+| volumes_ceph-ssd      |    -1 |
+| gigabytes_ceph-ssd    |    -1 |
+| snapshots_ceph-ssd    |    -1 |
+| volumes___DEFAULT__   |    -1 |
+| gigabytes___DEFAULT__ |    -1 |
+| snapshots___DEFAULT__ |    -1 |
+| groups                |    10 |
+| check_limit           |  None |
+| health_monitors       |  None |
+| listeners             |  None |
+| load_balancers        |  None |
+| l7_policies           |  None |
+| pools                 |  None |
+| ports                 |   500 |
+| project_id            |  None |
+| rbac_policies         |    10 |
+| routers               |    10 |
+| subnets               |   100 |
+| subnet_pools          |    -1 |
+| injected-file-size    | 10240 |
+| injected-path-size    |   255 |
+| injected-files        |     5 |
+| key-pairs             |   100 |
+| properties            |   128 |
+| server-group-members  |    10 |
+| server-groups         |    10 |
+| floating-ips          |    50 |
+| secgroup-rules        |   100 |
+| secgroups             |    10 |
+| backup-gigabytes      |  1000 |
+| per-volume-gigabytes  |    -1 |
++-----------------------+-------+
+```
+
+可以看到默认的配额 (`gigabytes`) 是 1000,默认卷数 (`gigabytes` 是 10),我们修改一下:
+
+```bash
+$ openstack quota set --gigabytes 100000 admin
+$ openstack quota set --volume-type ceph-hdd --gigabytes 100000 admin
+$ openstack quota set --volume-type ceph-ssd --gigabytes 4000 admin
+$ openstack quota set --volumes 50 admin
+```
+
+> 全局配额必须大于卷配额,创建一个卷必须同时小于全局配额和卷配额
+
+重新查看一下配额:
+
+```bash
+$ openstack quota show admin
++-----------------------+--------+  
+| Resource              |  Limit |  
++-----------------------+--------+
+| cores                 |     20 |     
+| instances             |     10 |
+| ram                   |  51200 |
+| fixed_ips             |   None |
+| networks              |    100 |
+| volumes               |     50 |
+| snapshots             |     10 |
+| gigabytes             | 100000 |
+| backups               |     10 |
+| volumes_ceph-hdd      |     -1 |
+| gigabytes_ceph-hdd    | 100000 |
+| snapshots_ceph-hdd    |     -1 |
+| volumes_ceph-ssd      |     -1 |
+| gigabytes_ceph-ssd    |   4000 |
+| snapshots_ceph-ssd    |     -1 |
+| volumes___DEFAULT__   |     -1 |
+| gigabytes___DEFAULT__ |     -1 |
+| snapshots___DEFAULT__ |     -1 |
+
+```
+
 ### 创建网络
 
 ```bash
@@ -450,61 +569,70 @@ openstack subnet create --network external-net \
   --subnet-range 42.51.26.0/24 external-subnet
 ```
 
-### 创建虚拟机
+## 创建虚拟机
 
-在 DashBoard 创建即可
+### windows server
 
-## windows server
-
-### 导入镜像
+###$ 使用传统接口
 
 ```bash
-openstack image create "Windows-Server-2022-ISO" \
+openstack image create "Windows-Server-2022" \
   --file windowsserver2022_zh-cn.iso \
   --disk-format iso \
   --container-format bare \
   --public
 ```
 
-windows server 没有对 virtio 的支持,需要使用 `virtio-win`,从 [这个链接](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/) 下载,然后也制作成镜像:
+制作安装光盘卷:
 
 ```bash
-$ openstack image create "Virtio-Win"   --file virtio-win-0.1.271.iso   --disk-format iso   --container-format bare   --public
+openstack volume create --type ceph-hdd --image Windows-Server-2022 --size 6 win-iso
 ```
 
-修改一下属性,主要是把这个镜像的 `virtio` 换成 `IDE`,否则安装程序还是识别不到:
+创建系统卷
 
 ```bash
-openstack image set --property hw_disk_bus=ide --property hw_cdrom_bus=ide "Virtio-Win"
+openstack volume create --type ceph-ssd --size 400 win-system
 ```
 
-设置一下实例类型,我这里:
+设置可引导和旧显卡
 
 ```bash
-$ openstack flavor create "NAS" --vcpus 4 --ram 8192 --disk 400
-+----------------------------+--------------------------------------+
-| Field                      | Value                                |
-+----------------------------+--------------------------------------+
-| OS-FLV-DISABLED:disabled   | False                                |
-| OS-FLV-EXT-DATA:ephemeral  | 0                                    |
-| description                | None                                 |
-| disk                       | 400                                  |
-| id                         | 83415c6c-3140-4377-9727-97b0fb08c6e2 |
-| name                       | NAS                                  |
-| os-flavor-access:is_public | True                                 |
-| properties                 |                                      |
-| ram                        | 8192                                 |
-| rxtx_factor                | 1.0                                  |
-| swap                       | 0                                    |
-| vcpus                      | 4                                    |
-+----------------------------+--------------------------------------+
+# 标记为可启动盘，防止 Nova 报错
+openstack volume set --bootable win-system
+
+# 强制要求 Nova 分配 e1000 老式千兆网卡
+openstack volume set --image-property hw_vif_model=e1000 win-system
 ```
 
-### 使用 KVM
+创建实例:
 
-参考 [这个指南](https://docs.openstack.org/image-guide/create-images-manually-example-windows-image.html):
+```bash
+SYSTEM_DISK_ID=$(openstack volume show win-system -c id -f value)
+ISO_VOL_ID=$(openstack volume show win-iso -c id -f value)
 
-可以使用 kvm 创建一个镜像然后使用这个镜像在 openstack 中创建实例
+openstack server create \
+  --flavor NAS \
+  --network external-net \
+  --block-device source_type=volume,uuid=$SYSTEM_DISK_ID,destination_type=volume,boot_index=0,disk_bus=sata \
+  --block-device source_type=volume,uuid=$ISO_VOL_ID,destination_type=volume,boot_index=1,device_type=cdrom,disk_bus=ide \
+  Win2022
+```
+
+挂载第二个磁盘需要新建一个卷然后手动连接到实例
+
+```bash
+$ openstack volume create --type ceph-hdd --size 2000 win-hdd   
+$ openstack server add volume Win2022 win-hdd
+```
+
+卷默认是 virtio 总线,需要安装 [virtio-win](https://fedorapeople.org/groups/virt/virtio-win/direct-downloads/archive-virtio/) 驱动
+
+参考 [这个帖子](https://www.cnblogs.com/weifeng1463/p/18342833) 把磁盘设置为联机状态
+
+#### 使用 KVM 创建 virtio 磁盘
+
+[这个指南](https://docs.openstack.org/image-guide/create-images-manually-example-windows-image.html) 提供了一个使用 kvm 在安装过程中挂载 virtio-win 并安装驱动使 windows 能够直接使用 virtio 总线的磁盘 (而不是现在这样先通过 SATA 总线创建系统盘,进入系统之后再安装驱动)
 
 运行:
 
@@ -528,72 +656,39 @@ virt-install --connect qemu:///system \
 
 ![](assets/OpenStack/使用%20KVM-20260302153359801.png)
 
-随后从 [这个链接](https://cloudbase.it/downloads/CloudbaseInitSetup_Stable_x64.msi) 下载 `CloudbaseInitSetup_Stable_x64.msi` 并运行:
+> 这篇文章提到的通过这样的系统创建纯净的实例模板在我的测试下不可行,主要是在创建并进入系统之后仍然存在一个密码,我找不到这个密码是在哪里产生的
 
-![](assets/OpenStack/导入镜像-20260302151204942.png)
-
-必须勾选 `Shutdown when Sysprep terminates`
-
-![](assets/OpenStack/使用%20KVM-20260302152947250.png)
-
-系统运行脚本之后系统会自动关机,此时 `win2022.qcow2` 就会变成纯净的模板,清除了 Windows 的 SID 和计算机名等专属信息,关机之后不能再次开机,直接上传镜像到服务器.
-
-在服务器上先把它制作成镜像:
+### CentOS7.9
 
 ```bash
-openstack image create "Windows-Server-2022" \
-  --file win2022.qcow2 \
-  --disk-format qcow2 \
-  --container-format bare \
-  --public
+$ openstack image create CentOS7 --file CentOS-7-x86_64-Minimal-2009.iso --disk-format i
+so --public                                            
+
+$  openstack volume create --type ceph-hdd --image CentOS7 --size 1 centos7-iso 
+(kolla-venv) kvmuser@kvm:~$ openstack volume create --type ceph-ssd --size 400 centos7-system      
+(kolla-venv) kvmuser@kvm:~$ openstack volume list   
+
+$ openstack volume set --bootable centos7-iso
+$ openstack volume set --bootable centos7-system
+
+$ openstack server create \
+  --flavor NAS \
+  --network external-net \
+  --block-device source_type=volume,uuid=d6ec1469-1ae9-4cd8-b25b-0d79d1403828,destination_type=volume,boot_index=0
+,disk_bus=virtio \
+  --block-device source_type=volume,uuid=ac3d0022-52e3-4071-9046-9a93cea3fee7,destination_type=volume,boot_index=1
+,device_type=cdrom,disk_bus=ide \
+  CentOS7       
 ```
 
-等待时间较长,可以另外一个终端查看其状态:
+## 关机
 
-```bash
-root@kvm:~# source /etc/kolla/admin-openrc.sh
-root@kvm:~# source /home/kvmuser/kolla-venv/bin/activate
-(kolla-venv) root@kvm:~# openstack image show "Windows-Server-2022"
-+------------------+--------------------------------------------------------------------------------------+
-| Field            | Value                                                                                |
-+------------------+--------------------------------------------------------------------------------------+
-| container_format | bare                                                                                 |
-| created_at       | 2026-03-02T08:14:35Z                                                                 |
-| disk_format      | qcow2                                                                                |
-| file             | /v2/images/d5323f3f-02ac-407a-8c72-42e259be7df3/file                                 |
-| id               | d5323f3f-02ac-407a-8c72-42e259be7df3                                                 |
-| min_disk         | 0                                                                                    |
-| min_ram          | 0                                                                                    |
-| name             | Windows-Server-2022                                                                  |
-| owner            | d1a73b9c325b4fe696d2400c63c21a65                                                     |
-| properties       | os_hidden='False', owner_specified.openstack.md5='',                                 |
-|                  | owner_specified.openstack.object='images/Windows-Server-2022',                       |
-|                  | owner_specified.openstack.sha256=''                                                  |
-| protected        | False                                                                                |
-| schema           | /v2/schemas/image                                                                    |
-| status           | saving                                                                               |
-| tags             |                                                                                      |
-| updated_at       | 2026-03-02T08:14:35Z                                                                 |
-| visibility       | public                                                                               |
-+------------------+--------------------------------------------------------------------------------------+
+首先停止所有虚拟机,然后
+
 ```
-
-观察到 `saving` 状态证明镜像正在制作中,耐心等待即可
-
-然后创建卷,卷大小按照实际需要即可:
-
-```bash
-openstack volume create \
-  --type ceph-ssd \
-  --size 400 \
-  --image Windows-Server-2022 \
-  win2022
-```
-
-创建实例:
-
-```bash
-openstack server create --flavor NAS --network external-net --volume win2022 Win2022
+(kolla-venv) kvmuser@kvm:~$ sudo cp kolla-ansible/all-in-one /etc/kolla/ansible/inventory/
+(kolla-venv) kvmuser@kvm:~$ kolla-ansible stop --yes-i-really-really-mean-it
+(kolla-venv) kvmuser@kvm:~$sudo shutdown -h now
 ```
 
 ## 排错
@@ -742,3 +837,7 @@ $ openstack compute service list
 | 087cc028f6ac |              |      |          |         |       |              |
 +--------------+--------------+------+----------+---------+-------+--------------+
 ```
+
+## 参考
+
+[Example: Microsoft Windows image](https://docs.openstack.org/image-guide/create-images-manually-example-windows-image.html)

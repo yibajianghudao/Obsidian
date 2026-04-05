@@ -8,7 +8,7 @@ author: jianghudao
 tags:  
 isCJKLanguage: true  
 date: 2025-11-20T09:35:03+08:00  
-lastmod: 2026-02-12T12:47:32+08:00
+lastmod: 2026-03-18T15:08:12+08:00
 ---
 
 ## 安装  
@@ -34,6 +34,13 @@ Alias /smokeping /usr/share/smokeping/www
     DirectoryIndex smokeping.cgi  
 </Directory>  
 ```  
+
+修改配置之后重启 apache 服务和 smokeping 服务
+
+```
+sudo systemctl restart apache2
+sudo systemctl restart smokeping
+```
 
 此时可以通过访问 `http://ip:port/smokeping/smokeping.cgi` 访问  
 然后在 `/etc/apache2/mods-available/dir.conf` 内添加 `smokeping.cgi`,然后只需要访问 `http://ip:port/smokeping` 即可  

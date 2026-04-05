@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-11-25T15:39:52+08:00
-lastmod: 2026-02-24T17:51:00+08:00
+lastmod: 2026-03-17T09:21:13+08:00
 ---
 
 ## 基础知识
@@ -1832,7 +1832,136 @@ ps aux --sort=-%cpu | head -n 10
 分区表有两种常见的格式:
 
 - MBR (Master Boot Record): 传统格式,最多支持 4 个主分区 (可以通过扩展分区设置多个分区),可以使用 `fdisk`,`cfdisk` 等工具分区.
-- GPT(GUID Partition Table): 较新格式,支持超大硬盘,几乎没有分区数量限制,可以使用 `parted` 等工具分区.
+- GPT(GUID Partition Table): 较新格式,支持超大硬盘,几乎没有分区数量限制,可以使用 `gdisk` 工具.
+
+> `parted` 是一个可以同时分区 `MBR` 和 `GPT` 的工具
+
+##### 实验
+
+现在服务器的磁盘状态如下:
+
+```bash
+$ lsblk
+NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINTS
+loop0    7:0    0 63.9M  1 loop /snap/core20/2318
+loop1    7:1    0   87M  1 loop /snap/lxd/29351
+loop2    7:2    0 38.8M  1 loop /snap/snapd/21759
+sda      8:0    0   30G  0 disk 
+├─sda1   8:1    0    1M  0 part 
+├─sda2   8:2    0    2G  0 part [SWAP]
+└─sda3   8:3    0   15G  0 part /
+sr0     11:0    1 1024M  0 rom  
+```
+
+现在使用 `gdisk` 分区,可以先输入 `?` 查看帮助信息:
+
+```bash
+$ sudo gdisk /dev/sda
+GPT fdisk (gdisk) version 1.0.8
+
+Partition table scan:
+  MBR: protective
+  BSD: not present
+  APM: not present
+  GPT: present
+
+Found valid GPT with protective MBR; using GPT.
+
+Command (? for help): ?
+b       back up GPT data to a file
+c       change a partition's name
+d       delete a partition
+i       show detailed information on a partition
+l       list known partition types
+n       add a new partition
+o       create a new empty GUID partition table (GPT)
+p       print the partition table
+q       quit without saving changes
+r       recovery and transformation options (experts only)
+s       sort partitions
+t       change a partition's type code
+v       verify disk
+w       write table to disk and exit
+x       extra functionality (experts only)
+?       print this menu
+```
+
+`p` 可以打印当前分区信息 (`l` 是打印所有分区类型)
+
+```bash
+Command (? for help): p
+Disk /dev/sda: 62914560 sectors, 30.0 GiB
+Model: VBOX HARDDISK   
+Sector size (logical/physical): 512/512 bytes
+Disk identifier (GUID): A7A677C2-E37E-4ADD-B34B-B5CA3CCCC971
+Partition table holds up to 128 entries
+Main partition table begins at sector 2 and ends at sector 33
+First usable sector is 34, last usable sector is 62914526
+Partitions will be aligned on 2048-sector boundaries
+Total free space is 25163709 sectors (12.0 GiB)
+
+Number  Start (sector)    End (sector)  Size       Code  Name
+   1            2048            4095   1024.0 KiB  EF02  
+   2            4096         4198399   2.0 GiB     8200  
+   3         4198400        35655679   15.0 GiB    8300
+```
+
+使用 `n` 创建一个分区:
+
+```bash
+Command (? for help): n
+Partition number (5-128, default 5): 
+First sector (34-62914526, default = 37752832) or {+-}size{KMGTP}: 
+Last sector (37752832-62914526, default = 62914526) or {+-}size{KMGTP}: +1024M
+Current type is 8300 (Linux filesystem)
+Hex code or GUID (L to show codes, Enter = 8300): 8E00
+Changed type of partition to 'Linux LVM'
+```
+
+> 注意 `Last sector` 一定要设置,否则会默认使用所有剩余空间
+
+创建之后用 `p` 查看检查,确定之后使用 `w` 保存:
+
+```bash
+Command (? for help): p
+Number  Start (sector)    End (sector)  Size       Code  Name
+   1            2048            4095   1024.0 KiB  EF02  
+   2            4096         4198399   2.0 GiB     8200  
+   3         4198400        35655679   15.0 GiB    8300  
+   4        35655680        37752831   1024.0 MiB  8E00  Linux LVM
+   5        37752832        39849983   1024.0 MiB  8E00  Linux LVM
+   6        39849984        41947135   1024.0 MiB  8E00  Linux LVM
+   7        41947136        44044287   1024.0 MiB  8E00  Linux LVM
+
+Command (? for help): w
+
+Final checks complete. About to write GPT data. THIS WILL OVERWRITE EXISTING
+PARTITIONS!!
+
+Do you want to proceed? (Y/N): y
+OK; writing new GUID partition table (GPT) to /dev/sda.
+Warning: The kernel is still using the old partition table.
+The new table will be used at the next reboot or after you
+run partprobe(8) or kpartx(8)
+The operation has completed successfully.
+```
+
+写入之后由于磁盘正在使用,分区并没有更新,重启或者运行 `partprobe` 之后才会更新:
+
+```bash
+$ sudo partprobe -s
+/dev/sda: gpt partitions 1 2 3 4 5 6 7
+$ lsblk /dev/sda
+NAME   MAJ:MIN RM SIZE RO TYPE MOUNTPOINTS
+sda      8:0    0  30G  0 disk 
+├─sda1   8:1    0   1M  0 part 
+├─sda2   8:2    0   2G  0 part [SWAP]
+├─sda3   8:3    0  15G  0 part /
+├─sda4   8:4    0   1G  0 part 
+├─sda5   8:5    0   1G  0 part 
+├─sda6   8:6    0   1G  0 part 
+└─sda7   8:7    0   1G  0 part 
+```
 
 #### 文件系统
 
@@ -1857,6 +1986,583 @@ mkfs.xfs /dev/sdc1
 ```
 
 #### 逻辑卷管理
+
+逻辑卷管理 (Logical Volume Manager, LVM) 的重点在于 " 可以弹性的调整 filesystem 的容量 ",LVM 可以整合多个实体 partition 或 disk,让这些 partition 看起来像一个磁盘一样,之后可以新增或移除其他的 parttion 到这个磁盘中
+
+LVM 有以下几个概念:
+
+1. 实体卷 (Physical Volume, PV): 由实体磁盘或分区转换而来,是 VG 的组成部分
+2. 卷组 (Volume Group, VG): 由多个 PV 组成,类似于一个大的逻辑磁盘
+3. 逻辑卷 (Logical Volume, LV): 由 VG 切分而来,类似于逻辑磁盘的分区
+4. 实体范围区块 (Physical Extent, PE): PE 是 LVM 最小的保存区块,类似于 block
+
+![](assets/Linux/逻辑卷管理-20260311093710547.png)
+
+> LV 的容量与 LV 内包含的 PE 总量有关,LV 的动态调整实际上是调整包含的 PE 的数量
+
+通过分割成 LV 之后就可以使用 `mkfs` 将 LV 格式化为文件系统,当 LV 调整之后,文件系统也会同步调整其容量.
+
+LV 有两种写入模式:
+
+- 线性模式: 只有前一个 partition 的容量用完才会使用下一个 partition
+- 交错模式: 同时写入多个磁盘,性能更好但冗余低
+
+LVM 主要用处是实现一个可弹性调节容量的文件系统,而不是强调性能与备份 (后者应该使用 RAID)
+
+##### 实验
+
+现在我的磁盘状态如下:
+
+```bash
+$ lsblk /dev/sda
+NAME   MAJ:MIN RM SIZE RO TYPE MOUNTPOINTS
+sda      8:0    0  30G  0 disk 
+├─sda1   8:1    0   1M  0 part 
+├─sda2   8:2    0   2G  0 part [SWAP]
+├─sda3   8:3    0  15G  0 part /
+├─sda4   8:4    0   1G  0 part 
+├─sda5   8:5    0   1G  0 part 
+├─sda6   8:6    0   1G  0 part 
+└─sda7   8:7    0   1G  0 part 
+```
+
+PV 命令:
+
+- `pvcreate` ：将实体 partition 创建成为 PV ；
+- `pvscan` ：搜索目前系统里面任何具有 PV 的磁盘；
+- `pvdisplay` ：显示出目前系统上面的 PV 状态；
+- `pvremove` ：将 PV 属性移除，让该 partition 不具有 PV 属性。
+
+```bash
+root@ubuntu22:~# pvscan
+  No matching physical volumes found
+root@ubuntu22:~# pvcreate /dev/sda{4,5,6}
+  Physical volume "/dev/sda4" successfully created.
+  Physical volume "/dev/sda5" successfully created.
+  Physical volume "/dev/sda6" successfully created.
+root@ubuntu22:~# pvscan
+  PV /dev/sda4                      lvm2 [1.00 GiB]
+  PV /dev/sda5                      lvm2 [1.00 GiB]
+  PV /dev/sda6                      lvm2 [1.00 GiB]
+  Total: 3 [3.00 GiB] / in use: 0 [0   ] / in no VG: 3 [3.00 GiB]
+root@ubuntu22:~# pvdisplay /dev/sda4
+  "/dev/sda4" is a new physical volume of "1.00 GiB"
+  --- NEW Physical volume ---
+  PV Name               /dev/sda4
+  VG Name               
+  PV Size               1.00 GiB
+  Allocatable           NO
+  PE Size               0   
+  Total PE              0
+  Free PE               0
+  Allocated PE          0
+  PV UUID               oHJIx9-yKia-g8N5-Vzjw-dSWP-Yrll-I7yjzh
+   
+root@ubuntu22:~# pvremove /dev/sda4
+  Labels on physical volume "/dev/sda4" successfully wiped.
+root@ubuntu22:~# pvscan
+  PV /dev/sda5                      lvm2 [1.00 GiB]
+  PV /dev/sda6                      lvm2 [1.00 GiB]
+  Total: 2 [2.00 GiB] / in use: 0 [0   ] / in no VG: 2 [2.00 GiB]
+root@ubuntu22:~# pvcreate /dev/sda4
+  Physical volume "/dev/sda4" successfully created.
+root@ubuntu22:~# pvscan
+  PV /dev/sda4                      lvm2 [1.00 GiB]
+  PV /dev/sda5                      lvm2 [1.00 GiB]
+  PV /dev/sda6                      lvm2 [1.00 GiB]
+  Total: 3 [3.00 GiB] / in use: 0 [0   ] / in no VG: 3 [3.00 GiB]
+```
+
+VG 相关的命令:
+
+- `vgcreate` ：就是主要创建 VG 的指令啦！他的参数比较多，等一下介绍。
+- `vgscan` ：搜索系统上面是否有 VG 存在？
+- `vgdisplay` ：显示目前系统上面的 VG 状态；
+- `vgextend` ：在 VG 内增加额外的 PV ；
+- `vgreduce` ：在 VG 内移除 PV；
+- `vgchange` ：设置 VG 是否启动 (active)；
+- `vgremove` ：删除一个 VG 啊！
+
+VG 的名称可以自己定义:
+
+```bash
+# vgcreate [-s N[mgt]] VG名称 PV名称
+选项与参数：
+-s ：后面接 PE 的大小 (size) ，单位可以是 m, g, t (大小写均可)
+```
+
+创建一个 vg:
+
+```bash
+root@ubuntu22:~# vgcreate -s 16M vg1 /dev/sda{4,5,6}
+  Volume group "vg1" successfully created
+root@ubuntu22:~# vgscan
+  Found volume group "vg1" using metadata type lvm2
+# pv的状态也改变了
+root@ubuntu22:~# pvscan
+  PV /dev/sda4   VG vg1             lvm2 [1008.00 MiB / 1008.00 MiB free]
+  PV /dev/sda5   VG vg1             lvm2 [1008.00 MiB / 1008.00 MiB free]
+  PV /dev/sda6   VG vg1             lvm2 [1008.00 MiB / 1008.00 MiB free]
+  Total: 3 [2.95 GiB] / in use: 3 [2.95 GiB] / in no VG: 0 [0   ]
+  
+# 查看vg的详细信息
+root@ubuntu22:~# vgdisplay vg1
+  --- Volume group ---
+  VG Name               vg1
+  System ID             
+  Format                lvm2
+  Metadata Areas        3
+  Metadata Sequence No  1
+  VG Access             read/write
+  VG Status             resizable
+  MAX LV                0
+  Cur LV                0
+  Open LV               0
+  Max PV                0
+  Cur PV                3
+  Act PV                3
+  VG Size               2.95 GiB
+  PE Size               16.00 MiB
+  Total PE              189
+  Alloc PE / Size       0 / 0   
+  Free  PE / Size       189 / 2.95 GiB
+  VG UUID               tJMCTp-1l13-n05K-Bmxm-GzgN-9QF0-OeQe2V
+   
+```
+
+使用 `vgextend` 和 `vgreduce` 来增加/删除一个 pv:
+
+```bash
+root@ubuntu22:~# pvcreate /dev/sda7 
+  Physical volume "/dev/sda7" successfully created.
+root@ubuntu22:~# vgdisplay vg1
+  --- Volume group ---
+  ...
+  VG Size               <3.94 GiB
+  PE Size               16.00 MiB
+  Total PE              252
+  Alloc PE / Size       0 / 0   
+  Free  PE / Size       252 / <3.94 GiB
+  VG UUID               tJMCTp-1l13-n05K-Bmxm-GzgN-9QF0-OeQe2V
+```
+
+可以看到 vg 的 PE 数量和总容量都增加了
+
+创建完 VG 之后就可以分割开成 LV 了,LV 的命令如下:
+
+- `lvcreate` ：创建 LV 啦！
+- `lvscan` ：查找系统上面的 LV ；
+- `lvdisplay` ：显示系统上面的 LV 状态啊！
+- `lvextend` ：在 LV 里面增加容量！
+- `lvreduce` ：在 LV 里面减少容量；
+- `lvremove` ：删除一个 LV ！
+- `lvresize` ：对 LV 进行容量大小的调整！
+
+```bash
+[root@study ~]# lvcreate [-L N[mgt]] [-n LV名称] VG名称
+[root@study ~]# lvcreate [-l N] [-n LV名称] VG名称
+选项与参数：
+-L  ：后面接容量，容量的单位可以是 M,G,T 等，要注意的是，最小单位为 PE，
+      因此这个数量必须要是 PE 的倍数，若不相符，系统会自行计算最相近的容量。
+-l  ：后面可以接 PE 的『个数』，而不是数量。若要这么做，得要自行计算 PE 数。
+-n  ：后面接的就是 LV 的名称啦！
+```
+
+创建一个 LV:
+
+```bash
+root@ubuntu22:~# lvcreate -L 2G -n lv1 vg1
+  Logical volume "lv1" created.
+root@ubuntu22:~# lvscan
+  ACTIVE            '/dev/vg1/lv1' [2.00 GiB] inherit
+# 注意lv应该使用全名
+root@ubuntu22:~# lvdisplay /dev/vg1/lv1 
+  --- Logical volume ---
+  LV Path                /dev/vg1/lv1
+  LV Name                lv1
+  VG Name                vg1
+  LV UUID                teVb50-1gbM-CP4T-p09A-c3C2-cL0e-nrEecC
+  LV Write Access        read/write
+  LV Creation host, time ubuntu22, 2026-03-11 02:55:33 +0000
+  LV Status              available
+  # open                 0
+  LV Size                2.00 GiB
+  Current LE             128
+  Segments               3
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     256
+  Block device           253:0
+   
+```
+
+创建文件系统:
+
+```bash
+root@ubuntu22:~# mkfs.xfs /dev/vg
+vg1/         vga_arbiter  
+root@ubuntu22:~# mkfs.xfs /dev/vg1/lv1 
+meta-data=/dev/vg1/lv1           isize=512    agcount=4, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=602112, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+root@ubuntu22:~# mkdir /lvm
+root@ubuntu22:~# mount /dev/vg1/lv1 /lvm/
+root@ubuntu22:~# df -Th /lvm/
+Filesystem          Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg1-lv1 xfs   2.3G   49M  2.3G   3% /lvm
+root@ubuntu22:~# cp -a /etc /var/log /lvm
+root@ubuntu22:~# df -Th /lvm/
+Filesystem          Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg1-lv1 xfs   2.3G  137M  2.2G   6% /lvm
+```
+
+放大 LV 的容量需要满足以下条件:
+
+1. VG 阶段需要有剩余的容量
+2. 文件系统支持放大
+
+> XFS 和 ZFS 文件系统只支持放大,EXT 家族和 btrfs 支持放大和缩小
+
+放大 LV 和 XFS:
+
+```bash
+# 增大lv
+root@ubuntu22:~# lvresize -L +1G /dev/vg1/lv1 
+  Size of logical volume vg1/lv1 changed from <2.30 GiB (147 extents) to <3.30 GiB (211 extents).
+  Logical volume vg1/lv1 successfully resized.
+root@ubuntu22:~# lvscan
+  ACTIVE            '/dev/vg1/lv1' [<3.30 GiB] inherit
+root@ubuntu22:~# df -Th /lvm
+Filesystem          Type  Size  Used Avail Use% Mounted on
+/dev/mapper/vg1-lv1 xfs   2.3G  121M  2.2G   6% /lvm
+
+root@ubuntu22:~# xfs_info /lvm
+meta-data=/dev/mapper/vg1-lv1    isize=512    agcount=4, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=602112, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+# 扩展xfs
+root@ubuntu22:~# xfs_growfs /lvm
+meta-data=/dev/mapper/vg1-lv1    isize=512    agcount=4, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=602112, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+data blocks changed from 602112 to 864256
+
+# 可以看到agcount增加了2,这是因为单个ag最大容量是agsize * bsize 约等于588M
+root@ubuntu22:~# xfs_info /lvm
+meta-data=/dev/mapper/vg1-lv1    isize=512    agcount=6, agsize=150528 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=864256, imaxpct=25
+         =                       sunit=0      swidth=0 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=2560, version=2
+         =                       sectsz=512   sunit=0 blks, lazy-count=1
+realtime =none                   extsz=4096   blocks=0, rtextents=0
+```
+
+#### RAID 管理
+
+这里主要指的是 " 软 RAID"(通过软件层面实现),服务器通常会安装一张 RAID 卡来做 " 硬 RAID". 硬 RAID 卡的性能比较好,软 RAID 会消耗一些系统资源.
+
+关于 RAID 的原理和分类可以查看这篇文章
+
+使用软 RAID 可以使用 `mdadm` 命令,创建的命令如下:
+
+```
+[root@study ~]# mdadm --detail /dev/md0
+[root@study ~]# mdadm --create /dev/md[0-9] --auto=yes --level=[015] --chunk=NK \
+> --raid-devices=N --spare-devices=N /dev/sdx /dev/hdx…
+选项与参数：
+--create          ：为创建 RAID 的选项；
+--auto=yes        ：决定创建后面接的软件磁盘数组设备，亦即 /dev/md0, /dev/md1…
+--chunk=Nk        ：决定这个设备的 chunk 大小，也可以当成 stripe 大小，一般是 64K 或 512K。
+--raid-devices=N  ：使用几个磁盘 (partition) 作为磁盘数组的设备
+--spare-devices=N ：使用几个磁盘作为备用 (spare) 设备
+--level=[015]     ：设置这组磁盘数组的等级。支持很多，不过建议只要用 0, 1, 5 即可
+--detail          ：后面所接的那个磁盘数组设备的详细信息
+```
+
+##### 实验
+
+我创建了五个 1G 大小的磁盘,准备创建一个 raid5(需要最少 3 块),实际上也可以在分区上创建 RAID
+
+磁盘状态如下:
+
+```
+$ lsblk
+nvme0n1 259:0    0    1G  0 disk 
+nvme0n2 259:1    0    1G  0 disk 
+nvme0n3 259:2    0    1G  0 disk 
+nvme0n4 259:3    0    1G  0 disk 
+nvme0n5 259:4    0    1G  0 disk 
+```
+
+创建 RAID:
+
+```
+$ sudo mdadm --create /dev/md0 --auto=yes --level=5 --chunk=256K --raid-devices=4 --spare-devices=1 /dev/nvme0n{1,2,3,4,5}
+```
+
+这里使用了 4 块磁盘制作 RAID5,1 块磁盘当作备用磁盘 (会在有磁盘故障时自动替换)
+
+查看 RAID 状态:
+
+```
+$ sudo mdadm --detail /dev/md0 
+/dev/md0:
+           Version : 1.2
+     Creation Time : Mon Mar 16 03:27:27 2026
+        Raid Level : raid5                       # raid级别
+        Array Size : 3139584 (2.99 GiB 3.21 GB)  # 可用容量
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)  # 每个磁盘设备的容量
+      Raid Devices : 4                           # 组成raid的磁盘数量
+     Total Devices : 5                           # 包括spare的磁盘总数
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Mar 16 03:27:37 2026
+             State : clean                       # raid的使用状态
+    Active Devices : 4
+   Working Devices : 5
+    Failed Devices : 0
+     Spare Devices : 1
+
+            Layout : left-symmetric
+        Chunk Size : 256K
+
+Consistency Policy : resync
+
+              Name : ubuntu22:0  (local to host ubuntu22)
+              UUID : b7f92e29:0806522d:8c309923:f75da2df
+            Events : 18
+
+    Number   Major   Minor   RaidDevice State
+       0     259        0        0      active sync   /dev/nvme0n1
+       1     259        1        1      active sync   /dev/nvme0n2
+       2     259        2        2      active sync   /dev/nvme0n3
+       5     259        3        3      active sync   /dev/nvme0n4
+
+       4     259        4        -      spare   /dev/nvme0n5
+```
+
+可以看到四个磁盘正在使用,一个磁盘备用,总容量是三个磁盘的大小
+
+还可以查看 `/proc/mdstat` 文件内容来查看系统软件 RAID 的情况:
+
+```
+$ cat /proc/mdstat
+Personalities : [linear] [multipath] [raid0] [raid1] [raid6] [raid5] [raid4] [raid10] 
+md0 : active raid5 nvme0n4[5] nvme0n5[4](S) nvme0n3[2] nvme0n2[1] nvme0n1[0]
+      3139584 blocks super 1.2 level 5, 256k chunk, algorithm 2 [4/4] [UUUU]
+      
+unused devices: <none>
+```
+
+> - 第一行：指出 md0 为 raid5 ，且使用了 nvme0n4, nvme0n5, nvme0n3, nvme0n2 等四个磁盘设备。每个设备后面的中括号 [] 内的数字为此磁盘在 RAID 中的顺序 (RaidDevice)；至于 nvme0n5 后面的 [S] 则代表 nvme0n5 为 spare 之意。
+> - 第二行：此磁盘数组拥有 3139584 个 block(每个 block 单位为 1K)，所以总容量约为 3GB， 使用 RAID 5 等级，写入磁盘的小区块 (chunk) 大小为 256K，使用 algorithm 2 磁盘数组算法。 [m/n] 代表此数组需要 m 个设备，且 n 个设备正常运作。因此本 md0 需要 4 个设备且这 4 个设备均正常运作。 后面的 [UUUU] 代表的是四个所需的设备 (就是 [m/n] 里面的 m) 的启动情况，U 代表正常运作，若为 _ 则代表不正常。
+
+挂载和使用:
+
+```
+$ sudo mkfs.xfs -f -d su=256k,sw=3 -r extsize=768k /dev/md0
+meta-data=/dev/md0               isize=512    agcount=8, agsize=98048 blks
+         =                       sectsz=512   attr=2, projid32bit=1
+         =                       crc=1        finobt=1, sparse=1, rmapbt=0
+         =                       reflink=1    bigtime=0 inobtcount=0
+data     =                       bsize=4096   blocks=784384, imaxpct=25
+         =                       sunit=64     swidth=192 blks
+naming   =version 2              bsize=4096   ascii-ci=0, ftype=1
+log      =internal log           bsize=4096   blocks=5184, version=2
+         =                       sectsz=512   sunit=64 blks, lazy-count=1
+realtime =none                   extsz=786432 blocks=0, rtextents=0
+
+$ sudo mkdir /raid
+$ sudo mount /dev/md0 /raid/
+$ sudo cp -a /etc/ /var/ /raid/
+$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           794M  1.2M  793M   1% /run
+/dev/sda3        15G  6.2G  7.8G  44% /
+tmpfs           3.9G     0  3.9G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs           794M  4.0K  794M   1% /run/user/1000
+/dev/md0        3.0G  1.1G  2.0G  36% /raid
+```
+
+管理 raid 的语法:
+
+```
+mdadm --manage /dev/md[0-9] [--add 设备] [--remove 设备] [--fail 设备] 
+选项与参数：
+--add    ：会将后面的设备加入到这个 md 中！
+--remove ：会将后面的设备由这个 md 中移除
+--fail   ：会将后面的设备设置成为出错的状态
+```
+
+模拟磁盘损坏:
+
+```
+$ sudo mdadm --manage /dev/md0 --fail /dev/nvme0n3 
+mdadm: set /dev/nvme0n3 faulty in /dev/md0
+$ sudo mdadm --detail /dev/md0 
+/dev/md0:
+           Version : 1.2
+     Creation Time : Mon Mar 16 03:27:27 2026
+        Raid Level : raid5
+        Array Size : 3139584 (2.99 GiB 3.21 GB)
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
+      Raid Devices : 4
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Mar 16 03:46:04 2026
+             State : clean 
+    Active Devices : 4
+   Working Devices : 4
+    Failed Devices : 1
+     Spare Devices : 0
+
+            Layout : left-symmetric
+        Chunk Size : 256K
+
+Consistency Policy : resync
+
+              Name : ubuntu22:0  (local to host ubuntu22)
+              UUID : b7f92e29:0806522d:8c309923:f75da2df
+            Events : 37
+
+    Number   Major   Minor   RaidDevice State
+       0     259        0        0      active sync   /dev/nvme0n1
+       1     259        1        1      active sync   /dev/nvme0n2
+       4     259        4        2      active sync   /dev/nvme0n5
+       5     259        3        3      active sync   /dev/nvme0n4
+
+       2     259        2        -      faulty   /dev/nvme0n3
+```
+
+RAID5 会进行自动修复,磁盘损坏之后我们需要将出错的硬盘移除并安装新的磁盘:
+
+```
+# 移除磁盘
+$ sudo mdadm --manage /dev/md0 --remove /dev/nvme0n3
+```
+
+关机并更换硬盘后:
+
+```
+$ sudo mdadm --manage /dev/md127 --add /dev/nvme0n6 
+mdadm: added /dev/nvme0n6
+$ sudo mdadm --detail /dev/md127
+/dev/md127:
+           Version : 1.2
+     Creation Time : Mon Mar 16 03:27:27 2026
+        Raid Level : raid5
+        Array Size : 3139584 (2.99 GiB 3.21 GB)
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
+      Raid Devices : 4
+     Total Devices : 5
+       Persistence : Superblock is persistent
+
+       Update Time : Mon Mar 16 06:27:20 2026
+             State : clean 
+    Active Devices : 4
+   Working Devices : 5
+    Failed Devices : 0
+     Spare Devices : 1
+
+            Layout : left-symmetric
+        Chunk Size : 256K
+
+Consistency Policy : resync
+
+              Name : ubuntu22:0  (local to host ubuntu22)
+              UUID : b7f92e29:0806522d:8c309923:f75da2df
+            Events : 42
+
+    Number   Major   Minor   RaidDevice State
+       0     259        0        0      active sync   /dev/nvme0n1
+       1     259        1        1      active sync   /dev/nvme0n2
+       4     259        4        2      active sync   /dev/nvme0n5
+       5     259        3        3      active sync   /dev/nvme0n4
+
+       6     259        5        -      spare   /dev/nvme0n6
+```
+
+md 名字变化是因为没有设置自动挂载,编辑配置文件:
+
+```
+$ sudo vim /etc/mdadm/mdadm.conf 
+ARRAY /dev/md0 UUID=b7f92e29:0806522d:8c309923:f75da2df
+
+# 配置写入内核
+$ sudo update-initramfs -u
+```
+
+上面是配置 RAID 的自动挂载,还可以给 RAID 上的文件系统配置自动挂载:
+
+```
+## 查看文件系统uuid
+$ blkid /dev/md127
+/dev/md127: UUID="e959a38b-ea6b-4d80-9c2b-2251abf60f8b" BLOCK_SIZE="512" TYPE="xfs"
+
+$ sudo vim /etc/fstab
+UUID=e959a38b-ea6b-4d80-9c2b-2251abf60f8b /raid xfs defaults 0 0
+```
+
+关闭软 RAID
+
+```
+# 取消挂载
+$ sudo umount /raid 
+# 注释自动挂载
+$ sudo vim /etc/fstab 
+#UUID=e959a38b-ea6b-4d80-9c2b-2251abf60f8b /raid xfs defaults 0 0
+
+# 停止RAID
+$ sudo mdadm --manage /dev/md0 --stop
+mdadm: stopped /dev/md0
+
+# 删除超级块
+$ sudo mdadm --zero-superblock /dev/nvme0n1 
+$ sudo mdadm --zero-superblock /dev/nvme0n2
+$ sudo mdadm --zero-superblock /dev/nvme0n4
+$ sudo mdadm --zero-superblock /dev/nvme0n5
+
+# 此时已经没有raid配置了
+$ cat /proc/mdstat 
+Personalities : [raid6] [raid5] [raid4] [linear] [multipath] [raid0] [raid1] [raid10] 
+unused devices: <none>
+
+# 删除自动挂载raid
+$ sudo vim /etc/mdadm/mdadm.conf 
+#ARRAY /dev/md0 UUID=b7f92e29:0806522d:8c309923:f75da2df
+
+# 更新引导镜像
+sudo update-initramfs -u
+```
+
+> 如果存在已经移除的磁盘,其中也会保存元数据,可以使用 `dd if=/dev/zero of=/dev/nvme0n3 bs=1M count=10` 删除
 
 #### 磁盘状态
 
@@ -2448,6 +3154,6 @@ apt-mark hold package
 
 ## 参考
 
-https://www.coonote.com/linux-note/linux-modifying-maximum-file-descriptor.html
-
-命令部分大量参考 [Linux Command](https://wangchujiang.com/linux-command/)
+- https://www.coonote.com/linux-note/linux-modifying-maximum-file-descriptor.html
+- 命令部分大量参考 [Linux Command](https://wangchujiang.com/linux-command/)
+- 基础知识部分参考 [鸟哥的 Linux 私房菜](https://vbird.org.cn/)

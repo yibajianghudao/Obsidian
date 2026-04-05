@@ -1,7 +1,7 @@
 ---
-title: Blog
+title: Language
 type: chapter
-weight: 13
+weight: 50
 ---
 
 {{% children type="list" description=false %}}
