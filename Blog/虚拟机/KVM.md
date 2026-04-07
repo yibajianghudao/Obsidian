@@ -718,7 +718,79 @@ Jan 30 01:39:02 kvm libvirtd[180975]: 2026-01-30T01:39:02.739+0000 7f763ee0c640 
 Jan 30 01:39:02 kvm libvirtd[180975]: 2026-01-30T01:39:02.739+0000 7f763ee0c640 -1 monclient: keyring not found
 Jan 30 01:39:02 kvm libvirtd[180975]: failed to connect to the RADOS monitor on: 42.51.26.2:3300,: No such file or directory
 ```
+## 快速启动虚拟机
+使用cloud-init镜像可以快速启动虚拟机:
+下载虚拟机镜像:
+```
+curl -O https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img
+```
+使用镜像创建虚拟磁盘:
+```
+qemu-img create -f qcow2 -b ~/Downloads/jammy-server-cloudimg-amd64.img -F qcow2 ~/k8s-master-1.qcow2 20G
+```
+创建磁盘后使用`virt-install`创建虚拟机,先创建一个`user-data`设置文件:
+```
+#cloud-config
+# 1. 设置主机名，这对于 K8s 极其重要，Master 和 Node 必须不同
+hostname: k8s-master-1
+manage_etc_hosts: true
 
+# 2. 设置时区（K8s 日志排错时时区一致很重要）
+timezone: Asia/Shanghai
+
+# 3. 用户配置
+users:
+  - default
+  - name: newuser
+    # 赋予 ubuntu 用户免密 sudo 权限，方便后续装东西
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    # (强烈推荐) 在宿主机执行 ssh-keygen 生成密钥后，把 ~/.ssh/id_ed25519.pub 的内容粘到下面：
+    ssh_authorized_keys:
+      - ssh-ed25519 AAAA
+
+# 4. 设置用户密码
+#ssh_pwauth: true
+#chpasswd:
+#  list: |
+#    newuser:123123
+#  expire: false
+# 5. 安装核心组件
+packages:
+  # qemu-guest-agent 极其重要！不装这个，宿主机的 virt-manager 就看不到虚拟机的 IP
+  - qemu-guest-agent
+  - curl
+  - wget
+  - vim
+
+# 6. 首次启动时执行的命令
+runcmd:
+  - systemctl enable --now qemu-guest-agent
+```
+注释掉的设置密码可以不加,可以直接通过密钥连接
+还可以创建一个网络配置文件自定义网络配置:
+```
+vim network-config-master-1
+
+network:
+  version: 2
+  ethernets:
+    # KVM/QEMU 默认的第一块网卡名称通常是 enp1s0
+    enp1s0:
+      dhcp4: no
+      addresses:
+        - 192.168.122.11/24  # 你想要的静态 IP
+      routes:
+        - to: default
+          via: 192.168.122.1   # KVM 默认网桥的网关 IP
+      nameservers:
+        addresses: [114.114.114.114, 8.8.8.8]
+```
+创建虚拟机:
+```
+sudo virt-install --name k8s-master-1 --memory 4096 --vcpus 2 --disk ~/k8s-master-1.qcow2 --import --os-variant ubuntu22.04 --network network=default --network network=k8s-local --cloud-init user-data=~/Cloud-init/user-data,network-config=~/Cloud-init/network-config-master-1 --noautoconsole 
+```
+创建后直接通过ssh使用密钥连接即可.
 ## 参考
 
 - [archlinux wiki QEMU](https://wiki.archlinuxcn.org/wiki/QEMU)
