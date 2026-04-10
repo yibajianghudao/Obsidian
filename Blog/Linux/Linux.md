@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-11-25T15:39:52+08:00
-lastmod: 2026-03-17T09:21:13+08:00
+lastmod: 2026-04-07T10:21:36+08:00
 ---
 
 ## 基础知识
@@ -1570,26 +1570,24 @@ top -n 1 | head -20
 
 ##### 僵尸进程与孤儿进程
 
-僵尸进程:
+###### 僵尸进程
 
-当一个进程停止时,其父进程会被告知,以便进行一些清理工作 (比如释放内存空间,资源占用).
+当子进程退出时，会向父进程发送 信号。如果父进程没有调用 wait() 或没有正确处理该信号，子进程就会变成僵尸进程——它已经结束了，但还占着进程表的位置。
 
-然而,如果父进程没有意识到子进程的死亡 (挂掉了),子进程就会进入僵尸状态．对于父进程来说，子进程仍然存在，但实际上子进程已经死亡并持续存在于系统中．
+**处理方式：**
 
-![](assets/Linux/zombies-turnoff-800x467.webp)
+```
+# 查看僵尸进程
+ps aux | grep Z
 
-可以使用 `ps aux | grep Z` 找出僵尸进程的 pid,然后通过 `pstree -p | grep pid` 查看僵尸进程的父进程,通过 `kill pid` 指令无法直接结束僵尸进程,需要结束僵尸进程的父进程才能结束僵尸进程.
+# 查看僵尸进程的父进程
+pstree -p | grep <pid>
 
-```bash
-# 强制杀死父进程
+# 僵尸进程无法被 kill 杀死，需终止其父进程
 kill -9 <父进程PID>
 ```
 
-孤儿进程:
-
-孤儿进程指其父进程执行完成或被终止后仍继续运行的一类进程,孤儿进程会被系统直接接管 (system 进程)
-
-##### 结束进程
+当父进程提前退出而子进程仍在运行时，子进程会被 init/systemd（PID 1）收养，成为孤儿进程。孤儿进程仍然正常运行，只是换了一个父进程。
 
 1. `kill`,`kill + 进程pid` 结束进程,`kill -9` 会强制杀死进程
 2. `pkill`,`pkill + 进程名字` 模糊查找,结束进程
@@ -1659,38 +1657,51 @@ kill -9 <父进程PID>
 
 ###### 区别对比
 
-可以使用 `pstree` 命令以树形结构显示进程的层次关系,它会显示每个进程及其子进程的关系
+| 特性         | `&` 后台运行 | `nohup` | `screen`/`tmux` | `ctrl + z` 挂起 |
+| :----------- | :----------- | :------ | :--------------- | :-------------- |
+| 后台运行     | 是           | 是      | 是               | 否 (挂起)        |
+| 终端关闭后存活 | **否**       | **是**  | **是**           | **否**          |
+| SIGHUP 信号处理 | 收到则退出 | 忽略   | 可分离会话       | 收到则退出      |
+| 会话分离     | 不支持       | 不支持   | 支持             | 不支持          |
+| 多窗口管理   | 不支持       | 不支持   | 支持             | 不支持          |
+| 输出重定向   | 需手动重定向  | 自动重定向到 nohup.out | 可自定义      | 暂停输出        |
+| 典型用途     | 临时后台任务   | 长期无人值守任务 | 复杂会话管理    | 暂停当前任务    |
 
-`&` 方法和 `ctrl + z` 运行在终端中,终端关闭后 (ssh 断开) 运行的命令也会停止
+**各方法进程树示例:**
 
 ```bash
-# sleep 999 &
+# sleep 999 &  - 进程仍是终端的子进程，终端关闭后被 SIGHUP 终止
 pstree
+systemd─┬─konsole─┬─zsh───sleep
+
+# nohup sleep 999 & - 进程脱离终端，由 init/systemd 收养
+pstree  
+systemd─┬─sleep
+
+# screen 内运行 ping - 进程属于 screen 会话，终端关闭后存活
+pstree
+systemd─┬─konsole─┬─zsh───screen───zsh───ping
+```
+
+**核心区别说明:**
+
+- `&`: 简单后台执行，但终端关闭时收到 SIGHUP 信号会导致进程退出
+- `nohup`: 通过忽略 SIGHUP 信号实现后台持续运行，输出自动重定向到 `nohup.out`
+- `screen`/`tmux`: 创建独立会话，进程与会话分离，可随时重新连接，适合长期运行任务
+- `ctrl + z`: 将当前任务暂停并放入后台 (不是持续运行)，可用 `fg` 恢复
+
+**Daemon vs 普通后台进程:**
+
+守护进程 (daemon) 是特殊的后台进程:
+
+- 由 init/systemd 直接 fork 生成,不与任何终端关联
+- 启动时通常会关闭标准输入输出,重定向到 `/dev/null` 或日志文件
+- 生命周期与终端无关,系统启动时创建,系统关闭时终止
+
+```bash
+# 守护进程 (生命周期独立于终端)
 systemd─┬─NetworkManager───3*[{NetworkManager}]
-        ├─systemd─┬─(sd-pam)
-        │         ├─konsole─┬─zsh───sleep
 ```
-
-使用 `nohup` 创建的后台进程运行在终端之外,终端关闭后命令能继续运行
-
-```bash
-# nohup sleep 999 &
-systemd─┬─systemd─┬─konsole─┬─zsh───pstree
-        │         ├─sleep
-```
-
-使用 `screen` 和 `tmux` 创建的子进程同样运行在终端之外,终端关闭后命令能继续运行
-
-```bash
-# screen
-# ping bilibili.com
-systemd─┬─systemd──konsole───zsh───sleep
-        │         ├─screen───zsh───ping
-```
-
-- `&`: 快速将任务放入后台，但终端关闭后进程会停止。
-- `nohup`: 适用于需要长时间运行的任务，确保终端关闭后进程继续运行。
-- `screen` 和 `tmux`: 更强大的会话管理工具，支持后台运行，分屏和恢复功能，适合长期和复杂任务。
 
 #### 线程管理
 
@@ -2564,7 +2575,209 @@ sudo update-initramfs -u
 
 > 如果存在已经移除的磁盘,其中也会保存元数据,可以使用 `dd if=/dev/zero of=/dev/nvme0n3 bs=1M count=10` 删除
 
-#### 磁盘状态
+#### 磁盘状态与性能
+
+在 Linux 中我们可以使用 `smartctl`,`badblocks`,`iostat` 等工具来监控硬盘的健康状态
+
+##### smartctl
+
+`smartctl` 是 `smartmontools` 软件包中的核心工具，可以通过 S.M.A.R.T.支持检查存储状态（Self-Monitoring, Analysis and Reporting Technology 自我监测、分析与报告技术）。
+
+使用 `smartctl -i` 检查 smartctl 的状态:
+
+```
+$ sudo smartctl -i /dev/sda
+smartctl 7.2 2020-12-30 r5155 [x86_64-linux-5.15.0-171-generic] (local build)
+Copyright (C) 2002-20, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF INFORMATION SECTION ===
+Device Model:     VBOX HARDDISK
+Serial Number:    VBfa83fe43-81172604
+Firmware Version: 1.0
+User Capacity:    32,212,254,720 bytes [32.2 GB]
+Sector Size:      512 bytes logical/physical
+Device is:        Not in smartctl database [for details use: -P showall]
+ATA Version is:   ATA/ATAPI-6 published, ANSI INCITS 361-2002
+Local Time is:    Mon Mar 23 03:22:39 2026 UTC
+SMART support is: Unavailable - device lacks SMART capability.
+```
+
+可以看到我的虚拟机磁盘是不支持 smartctl 的,对于 sata 硬盘来说,smart 是一项可以被开启/关闭的附加功能,而 nvme 磁盘的健康日志是强制性的:
+
+```
+$ sudo smartctl -i /dev/nvme0n1  
+[sudo] password for mintuser:       
+smartctl 7.4 2023-08-01 r5530 [x86_64-linux-6.14.0-37-generic] (local build)
+Copyright (C) 2002-23, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF INFORMATION SECTION ===
+Model Number:                       SAMSUNG 
+Serial Number:                      S79U802588
+Firmware Version:                   HPXM
+PCI Vendor/Subsystem ID:            0x144d
+IEEE OUI Identifier:                0x002538
+Total NVM Capacity:                 1,024,209,543,168 [1.02 TB]
+Unallocated NVM Capacity:           0
+Controller ID:                      1
+NVMe Version:                       2.0
+Number of Namespaces:               1
+Namespace 1 Size/Capacity:          1,024,209,543,168 [1.02 TB]
+Namespace 1 Utilization:            495,941,169,152 [495 GB]
+Namespace 1 Formatted LBA Size:     512
+Namespace 1 IEEE EUI-64:            002538 4841b4fab7
+Local Time is:                      Mon Mar 23 11:19:05 2026 CST
+```
+
+查看整体健康状态:
+
+```
+$ sudo smartctl -H /dev/nvme0n1
+smartctl 7.4 2023-08-01 r5530 [x86_64-linux-6.14.0-37-generic] (local build)
+Copyright (C) 2002-23, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF SMART DATA SECTION ===
+SMART overall-health self-assessment test result: PASSED
+```
+
+完整的状态数据:
+
+```
+$ sudo smartctl -A /dev/nvme0n1
+smartctl 7.4 2023-08-01 r5530 [x86_64-linux-6.14.0-37-generic] (local build)
+Copyright (C) 2002-23, Bruce Allen, Christian Franke, www.smartmontools.org
+
+=== START OF SMART DATA SECTION ===
+SMART/Health Information (NVMe Log 0x02)
+Critical Warning:                   0x00
+Temperature:                        37 Celsius
+Available Spare:                    100%
+Available Spare Threshold:          5%
+Percentage Used:                    1%
+Data Units Read:                    88,673,111 [45.4 TB]
+Data Units Written:                 18,095,417 [9.26 TB]
+Host Read Commands:                 3,124,141,121
+Host Write Commands:                289,290,393
+Controller Busy Time:               2,435
+Power Cycles:                       6,544
+Power On Hours:                     1,217
+Unsafe Shutdowns:                   73
+Media and Data Integrity Errors:    0
+Error Information Log Entries:      0
+Warning  Comp. Temperature Time:    0
+Critical Comp. Temperature Time:    0
+Temperature Sensor 1:               47 Celsius
+Temperature Sensor 2:               37 Celsius
+```
+
+需要关注的指标:
+
+- `Critical Warning: 0x00` 严重告警状态
+- `Percentage Used: 1%` 已用寿命
+- `Available Spare: 100%` 可用备用空间
+- `Media and Data Integrity Errors: 0` 介质与完整性错误
+- `Unsafe Shutdowns: 73` 不安全关机次数
+- `Data Units Written: 18,095,417 [9.26 TB]` 数据写入量
+
+##### badblocks
+
+`badblocks` 命令用于查找磁盘中损坏的区块
+
+硬盘是一个损耗设备，当使用一段时间后可能会出现坏道等物理故障。电脑硬盘出现坏道后，如果不及时更换或进行技术处理，坏道就会越来越多，并会造成频繁死机和数据丢失。
+
+最好的处理方式是更换磁盘，但在临时的情况下，应及时屏蔽坏道部分的扇区，不要触动它们。badblocks 就是一个很好的检查坏道位置的工具。
+
+通常磁盘会存在备用扇区,当有坏道产生时会自动使用备用扇区并遮蔽掉坏掉的区块,此时是无法通过 `badblocks` 等命令扫描出来的,可以使用 `smartctl` 检查备用扇区的使用情况.如果 badblocks 扫描出了大量坏道,意味着备用扇区可能已经耗尽.
+
+```
+# 语法:
+badblock(选项)(参数)
+
+# 选项:
+-b<区块大小>：指定磁盘的区块大小，单位为字节；
+-o<输出文件>：将检查的结果写入指定的输出文件；
+-s：在检查时显示进度；
+-v：执行时显示详细的信息；
+-w：在检查时，执行写入测试。
+
+# 参数:
+磁盘装置：指定要检查的磁盘装置；
+磁盘区块数：指定磁盘装置的区块总数；
+启始区块：指定要从哪个区块开始检查。
+```
+
+ext 文件系统可以使用 `dumpe2fs -h /dev/sda3 | grep "Block size"` 查看文件系统的块大小:
+
+```
+$ sudo dumpe2fs -h /dev/sda3 | grep "Block size"
+dumpe2fs 1.46.5 (30-Dec-2021)
+Block size:               4096
+```
+
+然后检测磁盘坏道并把结果存入文件中:
+
+```
+$ sudo badblocks -b 4096 -c 16 /dev/sda3 -o sda-badblocks-list
+```
+
+文件中的结果就是坏道的区块,格式类似于:
+
+```
+cat sda-badblocks-list
+51249
+51250
+51251
+51253
+51254
+……
+61245
+……
+```
+
+##### iostat
+
+`iostat` 用来监视系统输入输出设备和 cpu 的使用情况,它会汇报磁盘活动统计情况和 cpu 的使用情况,该命令包含在 `sysstat` 软件包中.
+
+`iostat` 不能对某个进程的磁盘使用情况进行深入的分析,只能对系统的整体情况进行分析,如果需要应该使用 `iotop`
+
+```
+# 语法
+iostat(选项)(参数)
+
+# 选项
+Usage: iostat [ options ] [ <interval> [ <count> ] ]
+Options are:
+[ -c ] [ -d ] [ -h ] [ -k | -m ] [ -N ] [ -s ] [ -t ] [ -V ] [ -x ] [ -y ] [ -z ]
+[ -j { ID | LABEL | PATH | UUID | ... } ] [ --human ] [ -o JSON ]
+[ [ -H ] -g <group_name> ] [ -p [ <device> [,...] | ALL ] ]
+
+```
+
+示例:
+
+```
+$ sudo iostat   
+Linux 6.14.0-37-generic () 	2026年03月23日 	_x86_64_	(16 CPU)
+
+avg-cpu:  %user   %nice %system %iowait  %steal   %idle
+           0.69    0.00    0.45    0.15    0.00   98.71
+
+Device             tps    kB_read/s    kB_wrtn/s    kB_dscd/s    kB_read    kB_wrtn    kB_dscd
+nvme0n1          39.35      1165.89       209.66         0.00   16726998    3007918          0
+
+```
+
+第二行是 cpu 的状态信息,包括:
+
+- `%user`: 在用户级执行时发生的 cpu 利用率百分比
+- `%system`: 在系统级 (内核) 执行时发生的 cpu 利用率百分比
+- `%nice`: 改变过优先级的用户进程所占用的 cpu 百分比
+- `%iowait`: 显示在系统有未完成的磁盘 IO 请求期间 cpu 空闲的时间所占的百分比
+- `%steal`: 虚拟 cpu 等待物理 cpu 的时间百分比
+- `%idle`: 显示 cpu 空闲且没有未完成的磁盘 IO 请求的时间所占的百分比
+
+> `%nice`: 普通进程的优先级 (nice 值是 0),如果使用 `nice` 或 `renice` 命令降低了某个用户进程的优先级 (给一个正数的 nice 值,让它变的更友善)  
+
+#### 存储空间
 
 #### 挂载
 

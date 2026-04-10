@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2025-12-23T16:27:51+08:00
-lastmod: 2026-03-17T17:45:02+08:00
+lastmod: 2026-03-24T16:41:02+08:00
 ---
 
 ## Windows  
@@ -113,83 +113,6 @@ deb-src https://mirrors.aliyun.com/ubuntu/ jammy-backports main restricted unive
 
 ```bash
 sudo apt update
-```
-
-### Vyos
-
-安装的镜像名称是 `vyos-2026.03.17-0027-rolling-generic-amd64.iso`,分配了两张网卡 (一个公网,一个内网):
-
-启动之后选择 `KVM console`,另外一个 `Serial console` 是用于通过 console 线连接时使用的 (部署在路由器上)
-
-启动之后使用用户 `vyos` 登录,密码也是 `vyos`
-
-![](assets/安装系统/Vyos-20260317153849682.png)
-
-先运行 `install image` 安装系统
-
-`console` 依旧选择 `kvm`,选择磁盘之后输入 `y` 确认删除所有数据,其它选项保持默认
-
-安装之后运行 `root` 重启系统,加载时拔出 u 盘
-
-进入新系统之后
-
-运行 `ip a` 检查一下网卡名称:
-
-![](assets/安装系统/Vyos-20260317153938667.png)
-
-```
-2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
-    link/ether 08:00:27:ec:54:75 brd ff:ff:ff:ff:ff:ff
-    altname enp0s3
-3: eth1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
-    link/ether 08:00:27:7b:4f:66 brd ff:ff:ff:ff:ff:ff
-    altname enp0s8
-```
-
-首先进入配置模式:
-
-```
-vyos@vyos$ configure
-vyos@vyos#
-```
-
-进入配置模式的标志是命令提示符由 `$` 改为 `#`
-
-接下来配置网络:
-
-```
-# 配置公网接口
-set interfaces ethernet eth1 address '192.168.88.61/24'
-set interfaces ethernet eth1 description 'WAN'
-
-# 配置内网接口
-set interfaces ethernet eth0 address '192.168.56.3/24'
-set interfaces ethernet eth0 description 'LAN'
-```
-
-配置网关:
-
-```
-set protocols static route 0.0.0.0/0 next-hop '192.168.88.1'
-```
-
-配置 DNS:
-
-```
-set system name-server '8.8.8.8'
-```
-
-配置 ssh:
-
-```
-set service ssh port '22'
-```
-
-应用并保存:
-
-```
-commit
-save
 ```
 
 ### 错误

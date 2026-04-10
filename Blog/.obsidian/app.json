@@ -7,7 +7,7 @@
   "propertiesInDocument": "source",
   "strictLineBreaks": true,
   "spellcheck": false,
-  "livePreview": false,
+  "livePreview": true,
   "readableLineLength": true,
   "foldIndent": false,
   "autoConvertHtml": true,
