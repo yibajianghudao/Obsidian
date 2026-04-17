@@ -27,13 +27,16 @@ sudo yum makecache fast
 yum install -y docker-ce-24.0.7-1.el7 docker-ce-cli-24.0.7-1.el7 containerd.io
 ```
 
-## 格式
+## 语法
 ### Dockerfile
 #### run entrypoint cmd的区别
 `RUN`指令用于在Dockerfile中执行构建和配置Docker镜像的命令,这些命令在镜像构建过程中执行,并且每个`RUN`指令都会在Dokcer镜像中创建一个新层.例如可以使用`RUN`来执行安装软件和库的命令:
 ``` Dokcerfile
 RUN apt update && apt -y install apache2
 ```
+### 镜像
+#### Alpine 和 Scratch的区别
+Scratch 里面什么都没有。如果 Go 代码里发了 HTTPS 请求，会因为找不到根证书而报错。解决办法是在多阶段构建的第一阶段（比如 ubuntu 容器里），把 /etc/ssl/certs/ca-certificates.crt 拷贝到 Scratch 镜像里。
 
 ## 排错
 
