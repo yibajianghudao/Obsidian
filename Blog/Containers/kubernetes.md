@@ -939,7 +939,7 @@ FIELDS:
 .
 ```
 
-### 模板
+#### 模板
 
 如果不知道如何编写,可以通过`kubectl create`来创建一个模板
 
@@ -1017,7 +1017,7 @@ spec:
 status: {}
 ```
 
-### 示例
+#### 示例
 
 一个pod的资源清单示例:
 
@@ -1078,47 +1078,6 @@ ee2f2e8c5151   9344fce2372f                                                     
 > 可以看到node2中存在多个pod,由多个容器组成,每个pod都有一个pause容器
 
 如果创建pod失败,可以通过`kubectl describe`查看k8s级别的日志然后通过`kubectl logs`查看容器b
-
-#### 修改容器内容
-
-访问pod的IP地址:
-
-```
-curl 10.244.58.196
-www.xinxianghf.com | hello MyAPP | version v1.0
-```
-
-在node2进入镜像修改信息:
-
-```
-docker exec -it k8s_myapp-1_pod-demo_default_c511da29-5c93-452f-b249-9f80cf18627a_1 /bin/bash
-
-echo 123 >> /usr/local/nginx/html/index.html
-```
-
-重新访问发现返回信息已经修改
-
-```
-curl 10.244.58.196
-www.xinxianghf.com | hello MyAPP | version v1.0
-123
-```
-
-事实上可以直接使用`kubectl exec`直接进入node中的容器
-
-```
-[root@k8s-master01 ~]# kubectl exec -it pod-demo -c myapp-1 -- /bin/bash
-pod-demo:/# echo "qwe" >> /usr/local/nginx/html/index.html 
-```
-
-重新访问发现已经进行修改:
-
-```
-[root@k8s-master01 ~]# curl 10.244.58.196
-www.xinxianghf.com | hello MyAPP | version v1.0
-123
-qwe
-```
 
 ## Pod的生命周期
 
@@ -1401,6 +1360,7 @@ hook的类型包括:
 - exec: 执行一段命令
 - HTTP: 发送HTTP请求
 
+> 探针和钩子并不冲突,也不需要全部使用
 示例:
 
 ```
@@ -1502,69 +1462,6 @@ spec:
 静态 Pod：不由 API Server 调度，而是由特定节点上的 Kubelet 直接监听本地特定目录下的 YAML 配置文件生成的 Pod。通常用于拉起和管理 K8S 控制平面的核心组件（如 kube-apiserver、etcd 等）。
 自主式 Pod：用户直接通过 API 独立创建的裸 Pod（Bare Pod），没有绑定任何高级控制器。一旦被删除、或者所在节点宕机，不会触发自动重建机制。
 动态 Pod：由 Deployment、StatefulSet 等控制器（Controller）统一管理的 Pod。控制器会自动处理其扩缩容、滚动更新，并在节点故障时自动触发异地重建，是生产环境部署应用的标准方式。
-
-### 示例
-
-探针和钩子并不冲突,也不需要全部使用
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: lifecycle-pod
-  labels:
-    app: lifecycle-pod
-spec:
-  containers:
-  - name: busybox-container
-    image: wangyanglinux/tools:busybox
-    command: ["/bin/sh", "-c", "touch /tmp/live ; sleep 600; rm -rf /tmp/live; sleep 3600"]
-    # 存活探测
-    livenessProbe:
-      exec:
-        command: ["test", "-e", "/tmp/live"]
-      # 延迟
-      initialDelaySeconds: 1
-      # 间隔
-      periodSeconds: 3
-
-    # 启动钩子
-    lifecycle:
-      postStart:
-        httpGet:
-          host: 192.168.1.10
-          path: index.html
-          port: 1234
-      preStop:
-        httpGet:
-          host: 192.168.1.10
-          path: hostname.html
-          port: 1234
-  - name: myapp-container
-    image: wangyanglinux/myapp:v1.0
-    # 存活检测
-    livenessProbe:
-      httpGet:
-        port: 80
-        path: /index.html
-      initialDelaySeconds: 1
-      periodSeconds: 3
-      timeoutSeconds: 3
-    # 就绪检测
-    readinessProbe:
-      httpGet:
-        port: 80
-        path: /index1.html
-      initialDelaySeconds: 1
-      periodSeconds: 3
-  initContainers:
-  - name: init-myservice
-    image: wangyanglinux/tools:busybox
-    command: ['sh', '-c', 'until nslookup myservice.default.svc.cluster.local; do echo waiting for myservice; sleep 2; done;']
-  - name: init-mydb
-    image: wangyanglinux/tools:busybox
-    command: ['sh', '-c', 'until nslookup mydb.default.svc.cluster.local; do echo waiting for mydb; sleep 2; done;']
-```
 
 ### 最佳实践
 
@@ -1825,7 +1722,7 @@ $ kubectl patch deployment myapp-deploy --patch '{"spec":{"template":{"spec":{"c
 > `containers`需要使用列表来传递,因为`containers`在资源清单中本身就是一个列表,其中`name`字段是主键,用于定位具体的`containers`,如果不指定name或不使用中括号,则会直接报错
 
 > 如果想要直接传递一个不完整的列表后直接覆盖原来的所有容器,可以使用`--type=merge`
-
+```
 # 修改后的资源清单
 spec:
   template:
