@@ -266,9 +266,32 @@ kubectl replace -f deployment.yaml
 ```
 kubectl apply -f deployment.yaml 
 ```
+> - `kubectl replace -f`: 使用新的配置完全替换掉现有资源的配置,新配置将**覆盖现有资源的所有字段和属性**,包括未指定的字段  
+> - `kubectl apply -f`: 使用新的配置部分地更新现有资源的配置,它会根据提供的配置文件或参数只更新和新配置中不同的部分,**保留未指定的字段**,例如创建资源后手动添加的标签. 
+
 #### kubectl diff
 `kubectl diff -f`使用指定资源清单与当前资源进行对比
 
 ```
 kubectl diff -f deployment.yaml 
+diff -u -N /tmp/LIVE-3988718542/apps.v1.Deployment.default.myapp-deploy /tmp/MERGED-2856276413/apps.v1.Deployment.default.myapp-deploy
+--- /tmp/LIVE-3988718542/apps.v1.Deployment.default.myapp-deploy        2025-09-20 02:52:55.998218608 +0800
++++ /tmp/MERGED-2856276413/apps.v1.Deployment.default.myapp-deploy      2025-09-20 02:52:56.000218631 +0800
+@@ -4,7 +4,7 @@
+   annotations:
+     deployment.kubernetes.io/revision: "3"
+   creationTimestamp: "2025-09-19T18:38:31Z"
+-  generation: 4
++  generation: 5
+   labels:
+     app: myapp-deploy
+   name: myapp-deploy
+@@ -30,7 +30,7 @@
+         app: myapp-deploy
+     spec:
+       containers:
+-      - image: wangyanglinux/myapp:v3.0
++      - image: wangyanglinux/myapp:v4.0
+         imagePullPolicy: IfNotPresent
+         name: myapp
 ```
