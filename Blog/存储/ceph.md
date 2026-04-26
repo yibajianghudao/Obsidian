@@ -1364,7 +1364,7 @@ pool 7 'rbd-ssd' replicated size 3 min_size 2 crush_rule 2 object_hash rjenkins 
 
 排查延迟高的 OSD:
 
-1. `ceph osd perf`,查看延迟大于 100ms 的 osd 的 id,例如 `OSD.200`
+1. `ceph osd perf | awk -F" " '$2 >= 100 { print $1 "\t" $2 }'`,查看延迟大于 100ms 的 osd 的 id,例如 `OSD.200`
 2. `ceph osd find 200`,找到 osd 所在的节点
 3. ssh 到对应的节点上
 4. `ceph-volume lvm list | grep -A20 "osd.200"`,找出 osd 对应的磁盘 (注意不是 osd 上面的磁盘,那是上一个 osd 的磁盘,找到 osd 那一行的 block 对应的名称)

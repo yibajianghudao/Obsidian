@@ -8,7 +8,7 @@ author: jianghudao
 tags:
 isCJKLanguage: true
 date: 2026-03-24T14:42:48+08:00
-lastmod: 2026-04-07T17:47:36+08:00
+lastmod: 2026-04-16T15:10:08+08:00
 ---
 
 ## 安装
@@ -702,3 +702,739 @@ $ sudo tcpdump -e -n -i vpp-tap-cp pppoes or pppoed
 > PPPoE 的心跳检测 (Echo-Request) 通常是由服务器发起的,因此第一行是服务器 mac 地址 > 客户端 mac 地址
 
 我们需要提取上面的三个参数: ISP 的 IP(10.0.100.1),服务端的 mac 地址 (02:fe:bd:7b:98:fa) 和 session id(1)
+
+### PPPoE 服务端
+
+目标：将一台启用 VPP 的 VyOS 服务器作为 PPPoE 服务端 (称作 vpp 服务器)，另一台 VyOS 服务器作为 PPPoE 客户端 (称作 vyos 服务器) 发起多个会话并聚合数据，测试 VPP 作为 PPPoE 服务端的性能。
+
+架构如下:
+
+![](assets/vyos/配置数据面-20260414112801075.png)
+
+- **认证请求**：客户端 → eth2 → tap4096 → Linux 内核 (accel-ppp) → 鉴权/IP 分配
+- **业务请求**：客户端 → eth2 → VPP 直接查 fib 表 → eth3 → 10.0.0.2（完全绕过 Linux 内核）
+
+#### 配置控制面
+
+##### vpp 启动 PPPoE 服务器
+
+```bash
+configure
+# 为 VPP 引擎分配计算资源
+set vpp settings resource-allocation cpu-cores '4'
+# 允许使用不受官方支持的网卡 (针对 KVM virtio 或普通消费级物理网卡必开)
+set vpp settings allow-unsupported-nics
+# 将物理网卡交由 VPP 接管，并开启多队列提升并发
+set vpp settings interface eth2
+set vpp settings interface eth2 num-rx-queues '4'
+set vpp settings interface eth2 num-tx-queues '4'
+# 直接让 PPPoE 监听已经被 VPP 接管的 eth2 物理网卡
+set service pppoe-server interface eth2
+# PPPoE 服务端参数
+set service pppoe-server access-concentrator 'VPP-Gateway'
+set service pppoe-server authentication mode 'local'
+set service pppoe-server authentication local-users username test password 'test'
+set service pppoe-server client-ip-pool MY-POOL range '10.200.200.100-10.200.200.200'
+set service pppoe-server default-pool 'MY-POOL'
+set service pppoe-server gateway-address '10.200.200.1'
+commit
+save
+exit
+```
+
+##### vyos 启动 PPPoE 客户端
+
+客户端使用下面的命令配置后会自动发起拨号:
+
+```bash
+configure
+set interfaces pppoe pppoe0 source-interface eth3
+set interfaces pppoe pppoe0 authentication user 'test'
+set interfaces pppoe pppoe0 authentication password 'test'
+commit
+save
+exit
+```
+
+然后在客户端和服务端都可以看到 Clinet IP,Session id 等信息:
+
+```
+# 客户端
+$ show interfaces pppoe
+Codes: S - State, L - Link, u - Up, D - Down, A - Admin Down
+Interface        IP Address                        S/L  Description
+---------        ----------                        ---  -----------
+pppoe0           10.200.200.100/32                 u/u
+
+# 服务端
+$ show pppoe-server sessions
+ ifname     | username |       ip       | ip6 | ip6-dp |    calling-sid    | rate-limit | state  |  uptime  | rx-bytes | tx-bytes
+----------------+----------+----------------+-----+--------+-------------------+------------+--------+----------+----------+----------
+ pppoe_session0 | test     | 10.200.200.100 |     |        | 6c:92:bf:3a:8a:4b |            | active | 00:00:17 | 0 B      | 0 B
+
+$ vppctl show pppoe session
+Number of PPPoE sessions: 1
+[0] sw-if-index 3 client-ip4 0.0.0.0 client-ip6 0.0.0.0/0 session-id 1 encap-if-index 1 decap-fib-index 0
+    local-mac 90:e2:ba:25:43:2c  client-mac 6c:92:bf:3a:8a:4b
+```
+
+注意,客户端的 `show interfaces pppoe` 命令必须退出配置模式后运行:
+
+```
+vyos@vyos# show interfaces pppoe
+ pppoe pppoe0 {
+     authentication {
+         password test
+         username test
+     }
+     source-interface eth3
+ }
+[edit]
+vyos@vyos# exit
+Warning: configuration changes have not been saved.
+exit
+vyos@vyos:~$ show interfaces pppoe
+Codes: S - State, L - Link, u - Up, D - Down, A - Admin Down
+Interface        IP Address                        S/L  Description
+---------        ----------                        ---  -----------
+pppoe0           10.200.200.101/32                 u/u
+```
+
+#### 配置数据面
+
+##### 配置 lookup
+
+通过上面的配置虽然获取到了 IP 和 Session，但是此时通道还不能使用，客户端尝试 ping 无法 ping 通。
+
+查看 vpp 的 PPPoE 会话信息:
+
+```
+$ vppctl show pppoe session
+Number of PPPoE sessions: 1
+[0] sw-if-index 3 client-ip4 0.0.0.0 client-ip6 0.0.0.0/0 session-id 1 encap-if-index 1 decap-fib-index 0
+    local-mac 90:e2:ba:25:43:2c  client-mac 6c:92:bf:3a:8a:4b
+```
+
+在客户端抓包网卡可以看到已经正常的发出了 ping 请求:
+
+```
+$ sudo tcpdump -i eth3 -n
+02:22:35.162658 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 1, length 64
+02:22:36.202238 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 2, length 64
+02:22:37.226243 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 3, length 64
+02:22:38.250238 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 4, length 64
+02:22:39.274233 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 5, length 64
+02:22:40.298235 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 6, length 64
+02:22:41.322237 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 7, length 64
+02:22:42.346236 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 8, length 64
+02:22:43.370235 PPPoE  [ses 0x1] IP 10.200.200.100 > 10.200.200.1: ICMP echo request, id 3926, seq 9, length 64
+```
+
+在服务端查看 vppctl 的错误信息:
+
+```
+$ vppctl show error
+   Count                  Node                              Reason               Severity
+         9             null-node                      blackholed packets           error
+        10            pppoe-input                 good packets decapsulated        error
+         1            pppoe-input                 good packets decapsulated        error
+```
+
+`good packets decapsulated` 表示成功解封装,`blackholed packets` 表示 ping 请求直接被扔到了黑洞 (blackholed) 中
+
+查看 VPP 的 FIB 表:
+
+```
+$ vppctl show ip fib 10.200.200.1/32
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, lcp-rt:1, ]
+0.0.0.0/0 fib:0 index:0 locks:2
+  default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+    path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+      path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+        [@0]: dpo-drop ip4
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[29:2436]]
+    [0] [@0]: dpo-drop ip4
+```
+
+该 ip 没有 fib 表,所以被 `0.0.0.0/0` 条目捕获, 意味着 VPP 不知道 `10.200.200.1` 就是自己,没有找到相关的路由就把包直接被丢弃了
+
+可以直接在 vpp 中创建一个 `loop0` 网卡,并配置上网关 (`10.200.200.1/32`) 的 IP,然后 VPP 会自动添加到 FIB 表,这样目标 ip 是网关的请求就不会被丢弃:
+
+```
+vyos@vyos:~$ vppctl create loopback interface
+loop0
+vyos@vyos:~$ vppctl set interface state loop0 up
+vyos@vyos:~$ vppctl set interface ip address loop0 10.200.200.1/32
+vyos@vyos:~$ vppctl show ip fib 10.200.200.1/32
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[default-route:1, lcp-rt:1, ]
+10.200.200.1/32 fib:0 index:12 locks:2
+  interface refs:1 entry-flags:connected,local, src-flags:added,contributing,active, cover:0
+    path-list:[25] locks:2 flags:local, uPRF-list:15 len:0 itfs:[]
+      path:[32] pl-index:25 ip4 weight=1 pref=0 receive:  oper-flags:resolved, cfg-flags:local,
+        [@0]: dpo-receive: 10.200.200.1 on loop0
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:13 buckets:1 uRPF:15 to:[0:0]]
+    [0] [@12]: dpo-receive: 10.200.200.1 on loop0
+```
+
+此时可以看到 `10.200.200.1 on loop0` 代表 VPP 会直接处理它.
+
+PPPoE 隧道建立后客户端自动配置好了网关:
+
+```
+$ ip r
+default nhid 40 dev pppoe0 proto static metric 20
+10.200.200.1 dev pppoe0 proto kernel scope link src 10.200.200.102
+192.168.1.0/24 dev eth2 proto kernel scope link src 192.168.1.1
+192.168.2.0/24 dev eth0 proto kernel scope link src 192.168.2.2 dead linkdown
+192.168.88.0/24 dev eth1 proto kernel scope link src 192.168.88.107
+```
+
+现在从 Vyos 服务器上就可以直接 ping 通 VPP 服务器上联的测试服务端 `10.0.0.2`:
+
+```
+$ ping 10.0.0.2
+PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
+64 bytes from 10.0.0.2: icmp_seq=1 ttl=63 time=0.103 ms
+64 bytes from 10.0.0.2: icmp_seq=2 ttl=63 time=0.061 ms
+64 bytes from 10.0.0.2: icmp_seq=3 ttl=63 time=0.065 ms
+64 bytes from 10.0.0.2: icmp_seq=4 ttl=63 time=0.059 ms
+64 bytes from 10.0.0.2: icmp_seq=5 ttl=63 time=0.065 ms
+```
+
+可以查看 `vppctl show interface` 的输出确定 (eth2 和 eth3 的传入/传出数同时增加) 或者查看链路:
+
+```
+vyos@vyos:~$ vppctl clear trace
+vyos@vyos:~$ vppctl trace add dpdk-input 10
+vyos@vyos:~$ vppctl show trace
+
+00:20:28:825521: dpdk-input
+  eth3 rx queue 3      <-- 【外网回包从 eth3 硬件队列进入。注意这里是 Thread 2 (vpp_wk_1)，证明你的多核多线程 RSS 起作用了！】
+  ...
+00:20:28:825527: ip4-lookup
+  ICMP: 10.0.0.2 -> 10.200.200.102   <-- 【VPP 查表，发现目标 10.200.200.102 属于拨号用户】
+  ...
+00:20:28:825527: ip4-midchain
+  tx_sw_if_index 5 dpo-idx 9 : ipv4 via 0.0.0.0 pppoe_session0  <-- 【VPP 触发隧道封装机制，准备为这个纯 IP 包穿上 PPPoE 衣服】
+  ...
+00:20:28:825528: tunnel-output
+  adj-midchain:[9]:ipv4 via 0.0.0.0 pppoe_session0
+00:20:28:825529: eth2-tx
+  eth2 tx queue 2      <-- 【穿好 PPPoE 和以太网外衣后，直接由 eth2 硬件网卡发射回客户端。闭环完成！】
+```
+
+##### 配置 SNAT
+
+此时 VyOS 服务器下联的的两台测试客户端还无法 ping 通测试服务端:
+
+```
+$ sudo tcpdump -i eth3 -n
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth3, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+02:25:31.856158 PPPoE  [ses 0x1] IP 192.168.1.101 > 10.0.0.2: ICMP echo request, id 2630, seq 1, length 64
+02:25:32.855329 PPPoE  [ses 0x1] IP 192.168.1.101 > 10.0.0.2: ICMP echo request, id 2630, seq 2, length 64
+02:25:33.855333 PPPoE  [ses 0x1] IP 192.168.1.101 > 10.0.0.2: ICMP echo request, id 2630, seq 3, length 64
+02:25:34.855314 PPPoE  [ses 0x1] IP 192.168.1.101 > 10.0.0.2: ICMP echo request, id 2630, seq 4, length 64
+```
+
+这是因为还没有配置 NAT 转换,在 VPP 服务器上错误是这样的:
+
+```
+$ vppctl show error
+   Count                  Node                              Reason               Severity
+        29            pppoe-input                 good packets decapsulated        error
+        18             dpdk-input                          no error                error
+```
+
+可以在 VPP 上抓包一下 trace 路径:
+
+```
+vyos@vyos:~$ vppctl clear trace
+vyos@vyos:~$ vppctl trace add dpdk-input 10
+vyos@vyos:~$ vppctl show trace
+------------------- Start of thread 0 vpp_main -------------------
+No packets in trace buffer
+------------------- Start of thread 1 vpp_wk_0 -------------------
+Packet 1
+
+00:56:56:744514: dpdk-input
+  eth2 rx queue 0
+  buffer 0x13f475: current data 0, length 106, buffer-pool 0, ref-count 1, trace handle 0x1000000
+                   ext-hdr-valid
+  PKT MBUF: port 0, nb_segs 1, pkt_len 106
+    buf_len 2176, data_len 106, ol_flags 0x180, data_off 128, phys_addr 0x75dd1dc0
+    packet_type 0x1 l2_len 0 l3_len 0 outer_l2_len 0 outer_l3_len 0
+    rss 0x0 fdir.hi 0x0 fdir.lo 0x0
+    Packet Offload Flags
+      PKT_RX_IP_CKSUM_GOOD (0x0080) IP cksum of RX pkt. is valid
+      PKT_RX_L4_CKSUM_GOOD (0x0100) L4 cksum of RX pkt. is valid
+    Packet Types
+      RTE_PTYPE_L2_ETHER (0x0001) Ethernet packet
+  PPPOE_SESSION: 6c:92:bf:3a:8a:4b -> 90:e2:ba:25:43:2c
+00:56:56:744517: ethernet-input
+  frame: flags 0x3, hw-if-index 1, sw-if-index 1
+  PPPOE_SESSION: 6c:92:bf:3a:8a:4b -> 90:e2:ba:25:43:2c
+00:56:56:744519: pppoe-input
+  PPPoE decap from pppoe_session0 session_id 1 next 1 error 0
+00:56:56:744519: ip4-input
+  ICMP: 192.168.1.101 -> 10.0.0.2
+    tos 0x00, ttl 63, length 84, checksum 0x848b dscp CS0 ecn NON_ECN
+    fragment id 0xeb0e, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0xb7bb id 3232
+00:56:56:744520: ip4-lookup
+  fib 0 dpo-idx 9 flow hash: 0x00000000
+  ICMP: 192.168.1.101 -> 10.0.0.2
+    tos 0x00, ttl 63, length 84, checksum 0x848b dscp CS0 ecn NON_ECN
+    fragment id 0xeb0e, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0xb7bb id 3232
+00:56:56:744521: ip4-rewrite
+  tx_sw_if_index 2 dpo-idx 9 : ipv4 via 10.0.0.2 eth3: mtu:1500 next:6 flags:[] 6c92bf044b2190e2ba25432d0800 flow hash: 0x00000000
+  00000000: 6c92bf044b2190e2ba25432d080045000054eb0e40003e01858bc0a801650a00
+  00000020: 00020800b7bb0ca000019cbcdd6900000000f8a90200000000001011
+00:56:56:744521: eth3-output
+  eth3 flags 0x0018000d
+  IP4: 90:e2:ba:25:43:2d -> 6c:92:bf:04:4b:21
+  ICMP: 192.168.1.101 -> 10.0.0.2
+    tos 0x00, ttl 62, length 84, checksum 0x858b dscp CS0 ecn NON_ECN
+    fragment id 0xeb0e, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0xb7bb id 3232
+00:56:56:744522: eth3-tx
+  eth3 tx queue 1
+  buffer 0x13f475: current data 8, length 98, buffer-pool 0, ref-count 1, trace handle 0x1000000
+                   ext-hdr-valid
+                   l2-hdr-offset 0 l3-hdr-offset 14
+  PKT MBUF: port 0, nb_segs 1, pkt_len 98
+    buf_len 2176, data_len 98, ol_flags 0x180, data_off 136, phys_addr 0x75dd1dc0
+    packet_type 0x1 l2_len 0 l3_len 0 outer_l2_len 0 outer_l3_len 0
+    rss 0x0 fdir.hi 0x0 fdir.lo 0x0
+    Packet Offload Flags
+      PKT_RX_IP_CKSUM_GOOD (0x0080) IP cksum of RX pkt. is valid
+      PKT_RX_L4_CKSUM_GOOD (0x0100) L4 cksum of RX pkt. is valid
+    Packet Types
+      RTE_PTYPE_L2_ETHER (0x0001) Ethernet packet
+  IP4: 90:e2:ba:25:43:2d -> 6c:92:bf:04:4b:21
+  ICMP: 192.168.1.101 -> 10.0.0.2
+    tos 0x00, ttl 62, length 84, checksum 0x858b dscp CS0 ecn NON_ECN
+    fragment id 0xeb0e, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0xb7bb id 3232
+
+Packet 2
+
+00:56:56:744556: dpdk-input
+  eth3 rx queue 2
+  buffer 0x151f0d: current data 0, length 98, buffer-pool 0, ref-count 1, trace handle 0x1000001
+                   ext-hdr-valid
+  PKT MBUF: port 1, nb_segs 1, pkt_len 98
+    buf_len 2176, data_len 98, ol_flags 0x182, data_off 128, phys_addr 0x7567c3c0
+    packet_type 0x11 l2_len 0 l3_len 0 outer_l2_len 0 outer_l3_len 0
+    rss 0x666a73fa fdir.hi 0x0 fdir.lo 0x666a73fa
+    Packet Offload Flags
+      PKT_RX_IP_CKSUM_GOOD (0x0080) IP cksum of RX pkt. is valid
+      PKT_RX_L4_CKSUM_GOOD (0x0100) L4 cksum of RX pkt. is valid
+      PKT_RX_RSS_HASH (0x0002) RX packet with RSS hash result
+    Packet Types
+      RTE_PTYPE_L2_ETHER (0x0001) Ethernet packet
+      RTE_PTYPE_L3_IPV4 (0x0010) IPv4 packet without extension headers
+  IP4: 6c:92:bf:04:4b:21 -> 90:e2:ba:25:43:2d
+  ICMP: 10.0.0.2 -> 192.168.1.101
+    tos 0x00, ttl 64, length 84, checksum 0xca1a dscp CS0 ecn NON_ECN
+    fragment id 0xe47f
+  ICMP echo_reply checksum 0xbfbb id 3232
+00:56:56:744557: ethernet-input
+  frame: flags 0x3, hw-if-index 2, sw-if-index 2
+  IP4: 6c:92:bf:04:4b:21 -> 90:e2:ba:25:43:2d
+00:56:56:744557: ip4-input-no-checksum
+  ICMP: 10.0.0.2 -> 192.168.1.101
+    tos 0x00, ttl 64, length 84, checksum 0xca1a dscp CS0 ecn NON_ECN
+    fragment id 0xe47f
+  ICMP echo_reply checksum 0xbfbb id 3232
+00:56:56:744558: ip4-lookup
+  fib 0 dpo-idx 0 flow hash: 0x00000000
+  ICMP: 10.0.0.2 -> 192.168.1.101
+    tos 0x00, ttl 64, length 84, checksum 0xca1a dscp CS0 ecn NON_ECN
+    fragment id 0xe47f
+  ICMP echo_reply checksum 0xbfbb id 3232
+00:56:56:744558: ip4-drop    // 10.0.0.2返回之后没有找到路由,直接丢弃
+    fib:0 adj:0 flow:0x00000000
+  ICMP: 10.0.0.2 -> 192.168.1.101
+    tos 0x00, ttl 64, length 84, checksum 0xca1a dscp CS0 ecn NON_ECN
+    fragment id 0xe47f
+  ICMP echo_reply checksum 0xbfbb id 3232
+00:56:56:744558: error-drop
+  rx:eth3
+00:56:56:744559: drop
+  dpdk-input: no error
+```
+
+可以看到因为 Vyos 服务器上没有配置 NAT 转换,导致错误的使用测试服务端的 IP 请求,在 VPP 服务器上由于配置了默认路由,因此成功转发到了 `10.0.0.2` 服务器,`10.0.0.2` 服务器同样由于配置了默认路由也返回了 VPP,但是 VPP 内部没有找到该局域网的地址,直接丢弃了返回的请求
+
+在 Vyos 和 `10.0.0.2` 上抓包也印证了这一点:
+
+```
+vyos@vyos:~$ sudo tcpdump -i eth3 -n
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on eth3, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+02:35:38.362604 PPPoE  [ses 0x1] LCP, Echo-Request (0x09), id 169, length 10
+02:35:38.362759 PPPoE  [ses 0x1] LCP, Echo-Reply (0x0a), id 169, length 10
+02:35:43.439898 PPPoE  [ses 0x1] IP 192.168.1.101 > 10.0.0.2: ICMP echo request, id 3232, seq 1, length 64
+
+[root@100 ~]# sudo tcpdump -i ens3f1 -n
+tcpdump: verbose output suppressed, use -v or -vv for full protocol decode
+listening on ens3f1, link-type EN10MB (Ethernet), capture size 262144 bytes
+20:05:02.147354 IP 192.168.1.101 > 10.0.0.2: ICMP echo request, id 3232, seq 1, length 64
+20:05:02.147367 IP 10.0.0.2 > 192.168.1.101: ICMP echo reply, id 3232, seq 1, length 64
+```
+
+在 vyos 上配置内核的 nat 转换,把所有源 ip 是 `192.168.1.0/24`,出口是 `pppoe0` 的请求进行 SNAT 转换:
+
+```
+vyos@vyos# set nat source rule 100 outbound-interface name 'pppoe0'
+[edit]
+vyos@vyos# set nat source rule 100 source address '192.168.1.0/24'
+[edit]
+vyos@vyos# set nat source rule 100 translation address 'masquerade'
+[edit]
+vyos@vyos# commit
+[edit]
+vyos@vyos# save
+[edit]
+vyos@vyos# exit
+exit
+```
+
+然后就可以正常的转发请求:
+
+```
+[root@101 ~]# ping 10.0.0.2 -c 1
+PING 10.0.0.2 (10.0.0.2) 56(84) bytes of data.
+64 bytes from 10.0.0.2: icmp_seq=1 ttl=62 time=0.232 ms
+
+--- 10.0.0.2 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.232/0.232/0.232/0.000 ms
+```
+
+#### 操作 PPPoE 客户端
+
+关闭 PPPOE 客户端可以使用:
+
+```
+vyos@vyos:~$ configure
+[edit]
+vyos@vyos# set interfaces pppoe pppoe0 disable
+[edit]
+vyos@vyos# commit
+```
+
+重新打开的时候运行:
+
+```
+vyos@vyos# delete interfaces pppoe pppoe0 disable
+[edit]
+vyos@vyos# commit
+[edit]
+```
+
+#### 通过 Packet Trace 分析数据报文转发机制
+
+现在当成功建立起 PPPoE 隧道之后 PPPoE session 中显示的 `client-ip4` 是 `0.0.0.0`:
+
+```
+vyos@vyos:~$ show pppoe-server sessions
+ ifname     | username |       ip       | ip6 | ip6-dp |    calling-sid    | rate-limit | state  |  uptime  | rx-bytes | tx-bytes
+----------------+----------+----------------+-----+--------+-------------------+------------+--------+----------+----------+----------
+ pppoe_session0 | test     | 10.200.200.100 |     |        | 6c:92:bf:3a:8a:4b |            | active | 00:13:15 | 0 B      | 0 B
+```
+
+但此时依旧可以正常的转发,trace 抓包如下:
+
+```
+vyos@vyos:~$ vppctl clear trace
+vyos@vyos:~$ vppctl trace add dpdk-input 10
+vyos@vyos:~$ vppctl show trace
+------------------- Start of thread 0 vpp_main -------------------
+No packets in trace buffer
+------------------- Start of thread 1 vpp_wk_0 -------------------
+Packet 1
+
+00:21:46:304594: dpdk-input
+  eth2 rx queue 0
+  buffer 0x194d92: current data 0, length 106, buffer-pool 0, ref-count 1, trace handle 0x1000000
+                   ext-hdr-valid
+  PKT MBUF: port 0, nb_segs 1, pkt_len 106
+    buf_len 2176, data_len 106, ol_flags 0x180, data_off 128, phys_addr 0x74736500
+    packet_type 0x1 l2_len 0 l3_len 0 outer_l2_len 0 outer_l3_len 0
+    rss 0x0 fdir.hi 0x0 fdir.lo 0x0
+    Packet Offload Flags
+      PKT_RX_IP_CKSUM_GOOD (0x0080) IP cksum of RX pkt. is valid
+      PKT_RX_L4_CKSUM_GOOD (0x0100) L4 cksum of RX pkt. is valid
+    Packet Types
+      RTE_PTYPE_L2_ETHER (0x0001) Ethernet packet
+  PPPOE_SESSION: 6c:92:bf:3a:8a:4b -> 90:e2:ba:25:43:2c
+00:21:46:304602: ethernet-input
+  frame: flags 0x3, hw-if-index 1, sw-if-index 1
+  PPPOE_SESSION: 6c:92:bf:3a:8a:4b -> 90:e2:ba:25:43:2c
+00:21:46:304605: pppoe-input
+  PPPoE decap from pppoe_session0 session_id 1 next 1 error 0
+00:21:46:304606: ip4-input
+  ICMP: 10.200.200.100 -> 10.0.0.2
+    tos 0x00, ttl 63, length 84, checksum 0x8408 dscp CS0 ecn NON_ECN
+    fragment id 0xda72, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0x86b5 id 2458
+00:21:46:304609: ip4-lookup
+  fib 0 dpo-idx 9 flow hash: 0x00000000
+  ICMP: 10.200.200.100 -> 10.0.0.2
+    tos 0x00, ttl 63, length 84, checksum 0x8408 dscp CS0 ecn NON_ECN
+    fragment id 0xda72, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0x86b5 id 2458
+00:21:46:304612: ip4-rewrite
+  tx_sw_if_index 2 dpo-idx 9 : ipv4 via 10.0.0.2 eth3: mtu:1500 next:6 flags:[] 6c92bf044b2190e2ba25432d0800 flow hash: 0x00000000
+  00000000: 6c92bf044b2190e2ba25432d080045000054da7240003e0185080ac8c8640a00
+  00000020: 0002080086b5099a00014c58e069000000006e1a0e00000000001011
+00:21:46:304612: eth3-output
+  eth3 flags 0x0018000d
+  IP4: 90:e2:ba:25:43:2d -> 6c:92:bf:04:4b:21
+  ICMP: 10.200.200.100 -> 10.0.0.2
+    tos 0x00, ttl 62, length 84, checksum 0x8508 dscp CS0 ecn NON_ECN
+    fragment id 0xda72, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0x86b5 id 2458
+00:21:46:304614: eth3-tx
+  eth3 tx queue 1
+  buffer 0x194d92: current data 8, length 98, buffer-pool 0, ref-count 1, trace handle 0x1000000
+                   ext-hdr-valid
+                   l2-hdr-offset 0 l3-hdr-offset 14
+  PKT MBUF: port 0, nb_segs 1, pkt_len 98
+    buf_len 2176, data_len 98, ol_flags 0x180, data_off 136, phys_addr 0x74736500
+    packet_type 0x1 l2_len 0 l3_len 0 outer_l2_len 0 outer_l3_len 0
+    rss 0x0 fdir.hi 0x0 fdir.lo 0x0
+    Packet Offload Flags
+      PKT_RX_IP_CKSUM_GOOD (0x0080) IP cksum of RX pkt. is valid
+      PKT_RX_L4_CKSUM_GOOD (0x0100) L4 cksum of RX pkt. is valid
+    Packet Types
+      RTE_PTYPE_L2_ETHER (0x0001) Ethernet packet
+  IP4: 90:e2:ba:25:43:2d -> 6c:92:bf:04:4b:21
+  ICMP: 10.200.200.100 -> 10.0.0.2
+    tos 0x00, ttl 62, length 84, checksum 0x8508 dscp CS0 ecn NON_ECN
+    fragment id 0xda72, flags DONT_FRAGMENT
+  ICMP echo_request checksum 0x86b5 id 2458
+```
+
+去程负责**解封装**，回程负责**按需封装**。
+
+去程链路：客户端 ➔ VPP ➔ 外网 (如 10.0.0.2)
+
+**核心特征：** 剥离 PPPoE 隧道，执行标准 IP 路由转发。
+
+1. **`dpdk-input` (物理入站)**：携带 PPPoE 头部的以太网帧从下联物理网卡（`eth2`）进入 VPP 内存缓冲。
+2. **`pppoe-input` (隧道解封)**：VPP 校验报文的 MAC 地址与 PPPoE Session ID。验证通过后，直接剥离 PPPoE 及底层以太网头部，露出内层纯 IPv4 报文。
+3. **`ip4-input` (安全校验)**：对裸露的 IPv4 报文进行基础合法性检查（如 Checksum、头部长度、TTL）。
+4. **`ip4-lookup` (路由查找)**：根据目标 IP (`10.0.0.2`) 查询硬件 FIB 表。命中直连路由或默认路由，确定出接口为上联物理口 `eth3`。
+5. **`ip4-rewrite` (二层重写)**：标准的路由转发动作。将报文的目标 MAC 改写为下一跳网关 MAC，源 MAC 改写为 `eth3` MAC，TTL 减 1。
+6. **`eth3-tx` (物理出站)**：将处理完毕的标准 IP 报文交由 DPDK，从物理网卡发送至外网。
+
+回程链路：外网 (如 10.0.0.2) ➔ VPP ➔ 客户端
+
+**核心特征：** 精准命中主机路由，触发动态隧道封装。
+
+1. **`dpdk-input` (物理入站)**：外网返回的标准纯 IP 报文从上联物理网卡（`eth3`）进入。
+2. **`ethernet-input` & `ip4-input` (二三层解析)**：识别以太网帧并进行基础 IP 校验（此时报文无 PPPoE 头部）。
+3. **`ip4-lookup` (路由查找)**：根据目标 IP (`10.200.200.100`) 查询 FIB 表。**命中由 VyOS 控制面通过 API 动态下发的 `/32` 客户端专属主机路由**，确定出接口为虚拟隧道接口 `pppoe_session0`。
+4. **`ip4-midchain` (隧道封装 - 核心步骤！)**：由于出接口是隧道，VPP 触发中间链（Midchain）处理机制。在此节点，VPP 将原本的纯 IP 报文作为 Payload，强行在其外部封装上之前协商好的 PPPoE 头部（含 Session ID）和对应的客户端 MAC 地址。
+5. **`tunnel-output` (虚拟出站)**：完成隧道打包，将封装好的报文引流至底层的承载物理接口。
+6. **`eth2-tx` (物理出站)**：携带完整 PPPoE 头部的数据帧从下联物理网卡发送回客户端，完成网络闭环。
+
+回程之所以能通，根本原因在于 VyOS 的控制面（大脑）在建立 PPPoE 会话的瞬间，通过 `vl_api_ip_route_add_del_t` 接口，向 VPP 强行注入了一条指向该客户端的 `/32` 主机路由。
+
+去程依靠网络基础路由配置（网段/默认路由），回程依靠控制面动态下发的主机路由。VPP 实现了完美的**无状态数据面**，只认流表，不问来源。
+
+可以看到在 `ip4-lookup` 环节之后直接进行了 `ip4-midchain`,然后从 `eth3` 接口转发了出去,这是因为 vpp 成功从 fib 中查找到了此 ip 的路由表:
+
+```
+vyos@vyos:~$ vppctl show ip fib 10.200.200.100/32
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+10.200.200.100/32 fib:0 index:18 locks:2
+  API refs:1 entry-flags:attached, src-flags:added,contributing,active,
+    path-list:[31] locks:2 flags:shared, uPRF-list:21 len:1 itfs:[5, ]
+      path:[39] pl-index:31 ip4 weight=1 pref=0 attached-nexthop:  oper-flags:resolved, cfg-flags:attached,
+        10.200.200.100 pppoe_session0 (p2p)
+      [@0]: ipv4 via 0.0.0.0 pppoe_session0: mtu:9000 next:7 flags:[] 6c92bf3a8a4b90e2ba25432c88641100000100000021
+             stacked-on:
+               [@2]: eth2-tx-dpo:
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:19 buckets:1 uRPF:21 to:[10:840]]
+    [0] [@6]: ipv4 via 0.0.0.0 pppoe_session0: mtu:9000 next:7 flags:[] 6c92bf3a8a4b90e2ba25432c88641100000100000021
+        stacked-on:
+          [@2]: eth2-tx-dpo:
+```
+
+#### 通过 API Trace 分析 FIB 路由下发机制
+
+我们可以通过检查 api trace 来查看这个过程:
+
+```
+# 客户端停止pppoe隧道
+vyos@vyos:~$ configure
+[edit]
+vyos@vyos# set interfaces pppoe pppoe0 disable
+[edit]
+vyos@vyos# commit
+[edit]
+
+# 服务端查看fib表,可以看到已经消失(被捕获到0.0.0.0):
+vyos@vyos:~$ vppctl show ip fib 10.200.200.100/32
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+0.0.0.0/0 fib:0 index:0 locks:2
+  default-route refs:1 entry-flags:drop, src-flags:added,contributing,active,
+    path-list:[0] locks:2 flags:drop, uPRF-list:0 len:0 itfs:[]
+      path:[0] pl-index:0 ip4 weight=1 pref=0 special:  cfg-flags:drop,
+        [@0]: dpo-drop ip4
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:1 buckets:1 uRPF:0 to:[0:0]]
+    [0] [@0]: dpo-drop ip4
+
+# 服务端清空并打开trace记录
+vyos@vyos:~$ vppctl api trace free
+vyos@vyos:~$ vppctl api trace on
+
+# 客户端重新打开PPPoE隧道
+vyos@vyos# delete interfaces pppoe pppoe0 disable
+[edit]
+vyos@vyos# commit
+[edit]
+vyos@vyos# exit
+Warning: configuration changes have not been saved.
+exit
+
+vyos@vyos:~$ show interfaces pppoe
+Codes: S - State, L - Link, u - Up, D - Down, A - Admin Down
+Interface        IP Address                        S/L  Description
+---------        ----------                        ---  -----------
+pppoe0           10.200.200.101/32                 u/u
+
+# 查看新路由的fib表
+vyos@vyos:~$ vppctl show ip fib 10.200.200.101/32
+ipv4-VRF:0, fib_index:0, flow hash:[src dst sport dport proto flowlabel ] epoch:0 flags:none locks:[adjacency:1, default-route:1, lcp-rt:1, ]
+10.200.200.101/32 fib:0 index:18 locks:2
+  API refs:1 entry-flags:attached, src-flags:added,contributing,active,
+    path-list:[31] locks:2 flags:shared, uPRF-list:21 len:1 itfs:[5, ]
+      path:[39] pl-index:31 ip4 weight=1 pref=0 attached-nexthop:  oper-flags:resolved, cfg-flags:attached,
+        10.200.200.101 pppoe_session0 (p2p)
+      [@0]: ipv4 via 0.0.0.0 pppoe_session0: mtu:9000 next:7 flags:[] 6c92bf3a8a4b90e2ba25432c88641100004000000021
+             stacked-on:
+               [@2]: eth2-tx-dpo:
+
+ forwarding:   unicast-ip4-chain
+  [@0]: dpo-load-balance: [proto:ip4 index:19 buckets:1 uRPF:21 to:[0:0]]
+    [0] [@6]: ipv4 via 0.0.0.0 pppoe_session0: mtu:9000 next:7 flags:[] 6c92bf3a8a4b90e2ba25432c88641100004000000021
+        stacked-on:
+          [@2]: eth2-tx-dpo:
+```
+
+查看 api trace 记录:
+
+```
+vyos@vyos:~$ vppctl api trace dump
+vl_api_pppoe_add_del_session_t:
+  is_add: 1
+  session_id: 64
+  client_ip: 0.0.0.0
+  decap_vrf_id: 0
+  client_mac: 6c92.bf3a.8a4b
+  disable_fib: 1
+vl_api_sw_interface_dump_t:
+  sw_if_index: 5
+  name_filter_valid: 0
+  name_filter:
+vl_api_control_ping_t:
+vl_api_feature_enable_disable_t:
+  sw_if_index: 5
+  enable: 0
+  arc_name: ip4-unicast
+  feature_name: ip4-not-enabled
+vl_api_ip_route_add_del_t:
+  is_add: 1
+  is_multipath: 0
+  route:
+    table_id: 0
+    stats_index: 0
+    prefix: 10.200.200.101/32
+    n_paths: 1
+    paths:
+      sw_if_index: 5
+      table_id: 0
+      rpf_id: 0
+      weight: 0
+      preference: 0
+      type: FIB_API_PATH_TYPE_NORMAL
+      flags: FIB_API_PATH_FLAG_NONE
+      proto: FIB_API_PATH_NH_PROTO_IP4
+      nh:
+        address:
+          ip4: 0.0.0.0
+          ip6: ::
+        via_label: 0
+        obj_id: 0
+        classify_table_index: 0
+      n_labels: 0
+```
+
+可以看到主要是运行了 5 个 api:
+
+1. `vl_api_pppoe_add_del_session_t` 建立 PPPoE 隧道,可以看到它传递的 ip 确实是 `client_ip: 0.0.0.0`,实际上并不会用到它
+2. `vl_api_sw_interface_dump_t` 查询状态,检查 `sw_if_index: 5` 状态
+3. `vl_api_control_ping_t` 同步机制,确保前面的 api 已经处理完
+4. `vl_api_feature_enable_disable_t` 激活接口属性,`ip4-not-enabled` 表示开启 ipv4 转发能力
+5. `vl_api_ip_route_add_del_t` 注入路由,这一步把真实的 `client ip` 注入到 fib 路由中
+
+#### 踩坑过程
+
+##### client-ip4
+
+一开始查看的 PPPoE 会话信息中的 client-ip4 是 `0.0.0.0`,认为可能 ping 不通是因为没有正确的设置上 client-ip4:
+
+查看 vpp 的 PPPoE 会话信息:
+
+```
+$ vppctl show pppoe session
+Number of PPPoE sessions: 1
+[0] sw-if-index 3 client-ip4 0.0.0.0 client-ip6 0.0.0.0/0 session-id 1 encap-if-index 1 decap-fib-index 0
+    local-mac 90:e2:ba:25:43:2c  client-mac 6c:92:bf:3a:8a:4b
+```
+
+可以看到客户端 IP 没有被成功同步 (`0.0.0.0`),手动重建一下会话:
+
+```
+vyos@vyos:~$ vppctl create pppoe session client-ip 0.0.0.0 session-id 1 client-mac 6c:92:bf:3a:8a:4b del
+vyos@vyos:~$ vppctl create pppoe session client-ip 10.200.200.100 session-id 1 client-mac 6c:92:bf:3a:8a:4b
+```
+
+可以看到成功的修改了客户端 IP:
+
+```
+vyos@vyos:~$ show pppoe-server sessions
+ ifname     | username |       ip       | ip6 | ip6-dp |    calling-sid    | rate-limit | state  |  uptime  | rx-bytes | tx-bytes
+----------------+----------+----------------+-----+--------+-------------------+------------+--------+----------+----------+----------
+ pppoe_session0 | test     | 10.200.200.100 |     |        | 6c:92:bf:3a:8a:4b |            | active | 00:27:56 | 0 B      | 0 B
+```
+
+再次尝试 ping 依旧不通,这是因为 client-ip4 对于 VPP 转发没用,VPP 解包请求之后会直接检查 fib 表,检查到请求的目标 IP 之后直接从相应的网卡转发出去 (那返回的时候查的是原目标 ip 的 fib 表吗?)
+
+##### 直接 pingPPPoE 服务端
+
+测试的时候直接从 PPPoE 客户端 pingPPPoE 服务端,服务端监控到的错误如下:
+
+```
+vyos@vyos:~$ vppctl show error
+   Count                  Node                              Reason               Severity
+        17            pppoe-input                 good packets decapsulated        error
+        14           ip4-icmp-input                      unknown type              error
+         1            pppoe-input                 good packets decapsulated        error
+```
+
+这是由于 VPP 本身并没有 ICMP 的响应模块,直接测试通过 VPP 转发到其上联服务器恢复正常
