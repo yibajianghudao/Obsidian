@@ -10,6 +10,13 @@ isCJKLanguage: true
 date: 2026-04-17T10:04:40+08:00
 lastmod: 2026-04-17T10:04:40+08:00
 ---
+## 开启补全
+开启bash中`kubectl`命令的补全功能
+```
+$ sudo apt install bash-completion
+$ echo 'source <(kubectl completion bash)' >> ~/.bashrc
+```
+之后手动运行一次`source <(kubectl completion bash)`或`source ~/.bashrc`或重开一个会话即可
 ## 命令
 ### kubectl
 
@@ -295,3 +302,11 @@ diff -u -N /tmp/LIVE-3988718542/apps.v1.Deployment.default.myapp-deploy /tmp/MER
          imagePullPolicy: IfNotPresent
          name: myapp
 ```
+## 操作
+### 修改pod镜像的几种方法
+1. 使用`kubectl patch`
+2. 使用`kubectl set image deployment mydep myapp=wangyanglinux/myapp:v1.0`(myapp 是容器名)
+3. 使用`kubectl edit`
+4. 修改yaml文件后`kubectl apply`
+
+
