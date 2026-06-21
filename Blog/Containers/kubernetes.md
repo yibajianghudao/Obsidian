@@ -1,3 +1,4 @@
+# vim: set sw=2 ts=2 sts=2 et:
 ---
 weight: 100
 title: Kubernetes
@@ -3396,6 +3397,118 @@ metadata:
 ---
 ```
 > 这个资源清单是不完全的,ServiceAccount还需要配合 ClusterRole 和 ClusterRoleBinding 才能正常工作。
+
+
+## Scheduler
+Scheduler是k8s的调度器，主要任务是把定义的pod分配到集群的节点上.
+pod创建后处于`Pending`状态就意味着还没有调度到合适的节点上.
+
+Schduler是作为单独的程序运行的(静态pod),启动之后会一直监听API Server,获取`Spec.NodeName`为空的pod,对每个pod都会创建一个binding,表明该pod应该被放在哪个节点上.
+
+需要考虑:
+- 保证每个节点都能被分配资源
+- 集群所有资源最大化被使用
+- 调度性能好,能够尽快对大批量pod完成调度
+- 允许用户根据自己的需求控制调度的逻辑
+
+pod还可以选择指定的调度器进行调度,可以是官方的调度器,也可以是自己写的调度器:
+```
+apiVersion: v1
+kind: Pod
+spec:
+    schedulername: test-scherduler
+```
+
+调度分为预选和优选,预选先过滤掉不满足条件的节点,然后从中优选出优先级最高的节点,如果中间任一步骤有错误,就直接返回错误
+
+预选算法: 
+- PodFitsResources: 节点上的剩余资源是否大于pod请求的资源
+- PodFitsHost: 如果pod指定了NodeName,检查节点名称是否和NodeName匹配
+- PodFitsHostPorts: 节点上一经使用的port是否和pod申请的port冲突
+- PodSelectorMatches: 过滤掉和pod指定的label不匹配的节点
+- NoDiskConflict: 已经mount的volume和pod指定的volume不冲突,除非它们都是只读
+> 每个预选算法都必须通过
+
+如果预选过程中没有合适的节点,pod会一直处于pendong状态,不断重试调度.知道有节点满足条件.如果有多个节点满足条件,就会开始**优选**的过程
+
+优选由一系列键值对组成,键是优先级项的名称,值是它的权重,优选项包括:
+- LeastRequestedPriority: 通过计算CPU和Memory的使用率来决定权重,使用率越低,权重越高,这个指标倾向于资源使用比例更低的节点
+- BalancedResourceAllocation: 节点上CPU和Memory使用率越接近,权重越高,这个应该和上面的一起使用
+- ImageLocalityPriority: 倾向于已经有要使用镜像的节点,镜像总大小值越大,权重越高
+
+当一个节点通过预选和优选之后就会形成一个绑定关系,对应节点的kubelet通过watch api收到绑定消息之后就会调用CRI实现pod的创建
+
+### 亲和性
+亲和性分为节点亲和性和pod亲和性:
+nodeAffinity: 节点亲和性,可用的操作符有: In, NotIn,Exists,DoesNotExist,Gt,Lt.可以使用操作符来实现反亲和性,**不支持拓扑域**
+podAffinity: 节点亲和性,将pod调度到与指定pod同一拓扑域中,可用的操作符有: In,NotIn,Exists,DoesNotExist
+podAntiAffinity: 节点反亲和性
+
+#### 节点亲和性
+节点亲和性指将pod调度到指定的主机上.
+Pod的亲和性分为两种策略:
+`preferredDuringSchedulingIgnoredDuringExecution`: 软性策略,如果不满足则会调度到其他node(前提是通过预选和优选)
+`requiredDuringSchedulingIgnoredDuringExecution`: 硬性策略,如果不满足则不会调度,pod一直处于pending状态
+
+其中软性策略是偏好,硬性策略是必要
+
+软策略示例文件:
+```
+spec: 
+  affinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 1
+      preference:
+        matchExpressions:
+          - key: domain
+            operator: In
+            value:
+            - xinxianghf
+```
+
+可以直接指定`spec.nodeName`来指定要调度的节点:
+```yaml
+spec:
+  nodeName: k8s-node01
+```
+
+硬策略的清单示例:
+```yaml
+spec: 
+  affinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    nodeSelectorTerms:
+    - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - k8s-node04
+```
+
+### Pod亲和性和Pod反亲和性
+Pod亲和性指新创建的pod和指定pod处于同一拓扑域,例如优先调度到具有满足条件的pod的node上
+
+spec下有`podAffinity`和`podAntiAffinity`表示Pod亲和性和反亲和性
+也同样有软策略和硬策略
+
+pod亲和性的清单示例:
+```yaml
+spec:
+  affinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - weight: 1
+    podAffinityTerm:
+      labelSelector:
+        matchExpressions:
+        - key: app
+          operator: In
+          values:
+          - pod-1
+      topologyKey: kubernetes.io/hostname
+```
+> `topologyKey`是拓扑域,指定的是**节点的标签**,例如如果设置隔离语为`kubernetes.io/hostname`(k8s自动管理的标签,值是每个node的主机名,例如`kubernetes.io/hostname=k8s-master-1`),那么k8s会将pod调度到和已有pod(设置的标签筛选到的pod)处于同一个node中,也可以设置为zone,region等,此时会调度到同区域,不一定在同一个node
+
+反亲和性和硬策略仅仅是将上面的字段改成`podAntiAffinity`和`requiredDuringSchedulingIgnoredDuringExecution`
 
 ## API
 可以通过下面的方式访问详细的kubernetesAPI文档:
